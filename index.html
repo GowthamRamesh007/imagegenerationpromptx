@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROMPTX — AI Image Recreation Competition</title>
+  
+  <!-- Standard Fonts & CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- Supabase Client & Lucide Icons CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- TOP NAVBAR -->
+  <header style="position:sticky; top:0; z-index:40; width:100%; border-bottom:1px solid rgba(255,255,255,0.08); padding:0.75rem 1.5rem;" class="glass-panel">
+    <div style="max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;">
+      
+      <!-- Brand & Tagline -->
+      <div style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;" id="nav-brand-click">
+        <div style="width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg, var(--cyber-cyan), var(--cyber-purple)); padding:2px;">
+          <div style="width:100%; height:100%; background:var(--bg-dark-950); border-radius:8px; display:flex; align-items:center; justify-content:center;">
+            <i data-lucide="image" style="color:var(--cyber-cyan)"></i>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <h1 class="text-gradient font-mono" style="font-size:1.25rem; font-weight:800; letter-spacing:0.05em;">PROMPTX</h1>
+            <span id="nav-round-badge" class="badge badge-cyan">ROUND 1</span>
+            <span id="nav-stage-badge" class="badge badge-amber">WAITING ROOM</span>
+          </div>
+          <span style="font-size:0.7rem; color:#94a3b8;">AI Image Recreation Competition &bull; Where Creativity Meets AI</span>
+        </div>
+      </div>
+
+      <!-- Navigation Actions -->
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <button id="nav-participant-btn" class="btn-secondary">
+          <i data-lucide="user" style="width:14px"></i> Participant Arena
+        </button>
+        <button id="nav-leaderboard-btn" class="btn-secondary">
+          <i data-lucide="trophy" style="width:14px; color:#fbbf24"></i> Leaderboard
+        </button>
+        
+        <!-- Discrete Organiser Lock Trigger -->
+        <button id="nav-hidden-organiser-lock" class="btn-secondary" style="padding:0.6rem; border-color:rgba(0,240,255,0.25);" title="Organiser Portal Lock">
+          <i data-lucide="lock" style="width:15px; color:var(--cyber-cyan)"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main style="flex:1; max-width:1280px; width:100%; margin:0 auto; padding:1.5rem 1rem;">
+
+    <!-- ================= VIEW 1: PARTICIPANT COMPETITION ARENA ================= -->
+    <section id="view-participant">
+
+      <!-- A. Participant Registration / Join Card -->
+      <div id="participant-join-card" style="max-width:480px; margin:3rem auto;" class="glass-panel-glow p-8">
+        <div style="text-align:center; margin-bottom:1.5rem;">
+          <h2 class="text-gradient font-mono" style="font-size:1.75rem; font-weight:800;">JOIN PROMPTX 2026</h2>
+          <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.25rem;">AI Image Recreation Competition &bull; Enter Team Details</p>
+        </div>
+
+        <form id="join-form" style="display:flex; flex-direction:column; gap:1.25rem;">
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#cbd5e1; margin-bottom:0.5rem;" class="font-mono">Team Name</label>
+            <input type="text" id="join-name-input" placeholder="e.g. CyberSmiths / Team Vision" required />
+          </div>
+
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#cbd5e1; margin-bottom:0.5rem;" class="font-mono">Team Member Names</label>
+            <input type="text" id="join-members-input" placeholder="e.g. Alex Vance, Sarah Chen" required />
+          </div>
+
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#cbd5e1; margin-bottom:0.5rem;" class="font-mono">Event Joining Code</label>
+            <input type="text" id="join-code-input" value="PROMPTX2026" placeholder="PROMPTX2026" required />
+          </div>
+
+          <button type="submit" class="btn-cyber" style="width:100%; margin-top:0.5rem;">
+            Enter Arena <i data-lucide="arrow-right"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- B. Stage 1: Waiting Room -->
+      <div id="participant-waiting-room" class="hidden" style="max-width:650px; margin:4rem auto; text-align:center;">
+        <div style="position:relative; display:inline-flex; align-items:center; justify-content:center; margin-bottom:2rem;">
+          <div style="width:120px; height:120px; border-radius:50%; border:1px solid rgba(0,240,255,0.35); position:absolute;" class="radar-ping"></div>
+          <div style="width:75px; height:75px; border-radius:50%; background:var(--bg-dark-900); border:2px solid var(--cyber-cyan); display:flex; align-items:center; justify-content:center; box-shadow:0 0 25px rgba(0,240,255,0.4);">
+            <i data-lucide="radio" style="width:34px; height:34px; color:var(--cyber-cyan)" class="pulse-glow"></i>
+          </div>
+        </div>
+
+        <h1 class="text-gradient font-mono" style="font-size:2.5rem; font-weight:800; margin-bottom:0.5rem;">WELCOME TO PROMPTX</h1>
+        <p style="font-size:1rem; color:#cbd5e1; margin-bottom:1.5rem;">AI Image Recreation Challenge</p>
+
+        <div class="glass-panel-glow p-6" style="border:1px solid #334155; margin-bottom:1.5rem;">
+          <div class="badge badge-cyan" style="margin-bottom:0.75rem;">Waiting Room Active</div>
+          <p id="waiting-room-message" style="font-size:0.9rem; color:#94a3b8; font-style:italic;">"Waiting for the organiser to reveal the reference image and start the round..."</p>
+        </div>
+      </div>
+
+      <!-- C. Stage 2 & 3: AI Image Recreation Challenge Arena -->
+      <div id="participant-arena" class="hidden" style="display:flex; flex-direction:column; gap:1.5rem;">
+        
+        <!-- Header Bar: Team Info & Synchronized Countdown Timer -->
+        <div class="glass-panel p-4" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+          <div class="font-mono" style="font-size:0.85rem;">
+            <span style="color:#94a3b8;">Team: </span>
+            <strong id="participant-name-display" style="color:var(--cyber-cyan)">Team</strong>
+            <span id="participant-qualification-status-badge" class="badge badge-green" style="margin-left:0.5rem;">Qualified for Round 1</span>
+          </div>
+
+          <div class="glass-panel p-3" style="border-color:var(--cyber-cyan); display:flex; align-items:center; gap:0.75rem;">
+            <i data-lucide="clock" style="color:var(--cyber-cyan)"></i>
+            <span id="timer-countdown-display" class="font-mono" style="font-size:1.5rem; font-weight:800; letter-spacing:0.1em; color:var(--cyber-cyan)">30:00</span>
+          </div>
+        </div>
+
+        <!-- 1. REFERENCE IMAGE DISPLAY (GIVEN BY ADMIN) -->
+        <div class="glass-panel-glow p-6" style="display:flex; flex-direction:column; gap:1rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <i data-lucide="eye" style="color:var(--cyber-cyan)"></i>
+              <h3 class="font-mono" style="font-size:0.9rem; font-weight:700;">REFERENCE IMAGE — RECREATE THIS IN YOUR AI GENERATOR</h3>
+            </div>
+            <span id="current-round-number-badge" class="badge badge-purple">ROUND 1</span>
+          </div>
+
+          <div id="reference-image-box" class="reference-image-box">
+            <img id="reference-image-element" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80" alt="Reference Image to Recreate" />
+          </div>
+          <p style="font-size:0.75rem; color:#94a3b8;" class="font-mono">Use an external AI image generator (e.g. Midjourney, DALL-E, Stable Diffusion) to recreate the above image.</p>
+        </div>
+
+        <!-- 2. PROMPT CREATION EDITOR -->
+        <div class="glass-panel-glow p-6" style="display:flex; flex-direction:column; gap:1rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <i data-lucide="edit-3" style="color:var(--cyber-cyan)"></i>
+              <h3 class="font-mono" style="font-size:0.9rem; font-weight:700;">1. WRITE YOUR IMAGE-GENERATION PROMPT</h3>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:1rem;" class="font-mono text-xs">
+              <span style="color:#94a3b8">Words: <strong id="prompt-word-count" style="color:var(--cyber-cyan)">0</strong></span>
+              <span style="color:#94a3b8">Chars: <strong id="prompt-char-count" style="color:#c084fc">0</strong> / 2000</span>
+              <button id="clear-prompt-btn" class="btn-secondary" style="padding:0.25rem 0.5rem;"><i data-lucide="trash-2" style="width:14px"></i></button>
+            </div>
+          </div>
+
+          <textarea id="prompt-editor-textarea" rows="5" placeholder="Enter the exact prompt used in your AI generator (e.g. 'A futuristic glowing cybernetic landscape with purple and cyan neon light structures, 8k resolution, cinematic render...')" style="line-height:1.6;"></textarea>
+        </div>
+
+        <!-- 3. RECREATED IMAGE UPLOAD & PREVIEW AREA -->
+        <div class="glass-panel-glow p-6" style="display:flex; flex-direction:column; gap:1rem;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <i data-lucide="upload-cloud" style="color:#c084fc"></i>
+              <h3 class="font-mono" style="font-size:0.9rem; font-weight:700;">2. UPLOAD YOUR RECREATED AI IMAGE</h3>
+            </div>
+            <span class="badge badge-cyan">JPG / JPEG / PNG (MAX 10MB)</span>
+          </div>
+
+          <!-- Dropzone -->
+          <div id="image-upload-dropzone" class="upload-dropzone">
+            <i data-lucide="image-plus" style="width:40px; height:40px; color:var(--cyber-cyan); margin-bottom:0.5rem;"></i>
+            <p class="font-mono" style="font-size:0.85rem; color:#cbd5e1; font-weight:600;">Drag & drop your AI generated image here or click to browse</p>
+            <p style="font-size:0.75rem; color:#64748b; margin-top:0.25rem;">Supported formats: .jpg, .jpeg, .png, .webp (Max 10MB)</p>
+            <input type="file" id="recreated-image-input" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+          </div>
+
+          <!-- Uploaded Image Preview Box -->
+          <div id="image-preview-container" class="hidden image-preview-card">
+            <img id="image-preview-element" src="" alt="Uploaded AI Recreated Image Preview" />
+            <div style="padding:0.75rem; background:#0b0f19; display:flex; justify-content:space-between; align-items:center;" class="font-mono text-xs">
+              <span style="color:var(--cyber-green)"><i data-lucide="check-circle" style="width:14px"></i> Image Uploaded & Ready</span>
+              <button id="remove-image-btn" class="btn-secondary" style="padding:0.25rem 0.5rem; color:#fda4af; border-color:#f43f5e;">Remove Image</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. FINAL SUBMISSION BUTTON & LOCKED BANNER -->
+        <div id="submit-btn-container" style="text-align:right;">
+          <button id="submit-entry-btn" class="btn-emerald">
+            <i data-lucide="send"></i> SUBMIT FINAL PROMPT & RECREATED IMAGE
+          </button>
+        </div>
+
+        <div id="submitted-success-banner" class="hidden glass-panel-glow p-6 text-center" style="border-color:var(--cyber-green);">
+          <i data-lucide="check-circle-2" style="width:48px; height:48px; color:var(--cyber-green); margin-bottom:0.5rem;"></i>
+          <h3 class="font-mono" style="font-size:1.25rem; font-weight:800; color:var(--cyber-green);">SUBMISSION SUCCESSFUL</h3>
+          <p style="font-size:0.8rem; color:#cbd5e1; margin-top:0.25rem;">Your prompt and recreated image are locked and submitted for judging.</p>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= VIEW 2: ORGANISER COMMAND PORTAL ================= -->
+    <section id="view-admin" class="hidden">
+
+      <!-- Admin Dashboard & Response Console -->
+      <div id="admin-dashboard" style="display:flex; flex-direction:column; gap:1.5rem;">
+        
+        <!-- Metrics Bar -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:1rem;">
+          <div class="glass-panel p-4">
+            <span style="font-size:0.7rem; color:#94a3b8;" class="font-mono">REGISTERED TEAMS</span>
+            <div id="metric-total-participants" class="font-mono" style="font-size:1.75rem; font-weight:800; color:#fff;">0</div>
+          </div>
+          <div class="glass-panel p-4" style="border-color:var(--cyber-green)">
+            <span style="font-size:0.7rem; color:var(--cyber-green);" class="font-mono">🟢 WORKING LIVE</span>
+            <div id="metric-typing-participants" class="font-mono" style="font-size:1.75rem; font-weight:800; color:var(--cyber-green)">0</div>
+          </div>
+          <div class="glass-panel p-4" style="border-color:var(--cyber-amber)">
+            <span style="font-size:0.7rem; color:var(--cyber-amber);" class="font-mono">🟡 IDLE</span>
+            <div id="metric-idle-participants" class="font-mono" style="font-size:1.75rem; font-weight:800; color:var(--cyber-amber)">0</div>
+          </div>
+          <div class="glass-panel p-4" style="border-color:var(--cyber-cyan)">
+            <span style="font-size:0.7rem; color:var(--cyber-cyan);" class="font-mono">🔵 SUBMITTED TEAMS</span>
+            <div id="metric-submitted-participants" class="font-mono" style="font-size:1.75rem; font-weight:800; color:var(--cyber-cyan)">0</div>
+          </div>
+        </div>
+
+        <!-- Controls Toolbar & Round Selector -->
+        <div class="glass-panel p-4" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+          <div style="display:flex; gap:0.5rem;" class="font-mono">
+            <button id="tab-monitoring-btn" class="btn-cyber" style="font-size:0.75rem; padding:0.5rem 1rem;">Live Submissions Console</button>
+            <button id="tab-scenario-btn" class="btn-secondary">Reference Image & Round Manager</button>
+            <button id="tab-judging-btn" class="btn-secondary">Judging Matrix (/100)</button>
+          </div>
+
+          <div style="display:flex; gap:0.5rem;">
+            <button id="admin-load-demo-btn" class="btn-secondary" style="border-color:var(--cyber-purple); color:#c084fc;"><i data-lucide="database" style="width:14px"></i> Load Demo Submissions</button>
+            <button id="admin-start-event-btn" class="btn-emerald" style="font-size:0.75rem; padding:0.5rem 1rem;">START ROUND</button>
+            <button id="admin-pause-event-btn" class="btn-secondary">Pause</button>
+            <button id="admin-resume-event-btn" class="btn-secondary">Resume</button>
+            <button id="admin-end-event-btn" class="btn-secondary" style="border-color:#f43f5e; color:#fda4af;">End Round</button>
+            <button id="admin-reset-event-btn" class="btn-secondary" style="padding:0.5rem;"><i data-lucide="rotate-ccw" style="width:14px"></i></button>
+          </div>
+        </div>
+
+        <!-- Tab Content 1: Live Submissions & Real-Time Cards Grid -->
+        <div id="admin-tab-monitoring">
+          <h3 class="font-mono" style="font-size:0.8rem; color:#94a3b8; margin-bottom:0.75rem;">LIVE TEAMS & RECREATED IMAGE SUBMISSIONS</h3>
+          <div id="admin-participant-cards-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:1rem;"></div>
+        </div>
+
+        <!-- Tab Content 2: Reference Image & 3-Round Qualifier System -->
+        <div id="admin-tab-scenario" class="hidden" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
+          
+          <!-- Reference Image Manager -->
+          <div class="glass-panel p-6" style="display:flex; flex-direction:column; gap:1rem;">
+            <h3 class="font-mono text-gradient" style="font-size:0.95rem; font-weight:700;">REFERENCE IMAGE MANAGER</h3>
+            
+            <div>
+              <label class="font-mono text-xs" style="color:#cbd5e1; display:block; margin-bottom:0.5rem;">Reference Image URL or Upload</label>
+              <input type="text" id="admin-ref-image-url-input" placeholder="https://images.unsplash.com/..." />
+            </div>
+
+            <div>
+              <label class="font-mono text-xs" style="color:#cbd5e1; display:block; margin-bottom:0.5rem;">Or Upload Reference Image File</label>
+              <input type="file" id="admin-ref-image-file-input" accept="image/*" />
+            </div>
+
+            <div style="border:1px solid #334155; border-radius:0.75rem; overflow:hidden; max-height:180px; background:#000; text-align:center;">
+              <img id="admin-ref-image-preview" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80" style="max-height:180px; object-fit:contain;" />
+            </div>
+
+            <button id="admin-save-ref-image-btn" class="btn-cyber">Save & Reveal Reference Image</button>
+          </div>
+
+          <!-- 3-Round Qualifier Selection Panel -->
+          <div class="glass-panel p-6" style="display:flex; flex-direction:column; gap:1rem;">
+            <h3 class="font-mono text-gradient-amber" style="font-size:0.95rem; font-weight:700;">3-ROUND QUALIFIER SELECTION PANEL</h3>
+            
+            <div style="display:flex; gap:0.5rem;" class="font-mono text-xs">
+              <button id="select-round-1-btn" class="btn-cyber" style="flex:1; padding:0.5rem;">Round 1 (All)</button>
+              <button id="select-round-2-btn" class="btn-secondary" style="flex:1; padding:0.5rem;">Round 2 (Top 7)</button>
+              <button id="select-round-3-btn" class="btn-secondary" style="flex:1; padding:0.5rem;">Final (Top 5)</button>
+            </div>
+
+            <div id="qualifier-confirm-container" class="glass-panel p-4" style="background:#06080d; font-size:0.75rem;" class="font-mono">
+              <p style="color:#94a3b8; margin-bottom:0.5rem;">Manually confirm qualified teams for the next round after scoring:</p>
+              <div id="qualifiers-list-checkboxes" style="display:flex; flex-direction:column; gap:0.35rem; max-height:140px; overflow-y:auto;"></div>
+              <button id="admin-confirm-qualifiers-btn" class="btn-emerald" style="width:100%; margin-top:0.75rem; font-size:0.7rem;">Confirm & Advance Qualified Teams</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tab Content 3: Judging Matrix -->
+        <div id="admin-tab-judging" class="hidden" style="display:grid; grid-template-columns:1fr 2fr; gap:1.5rem;">
+          <div class="glass-panel p-6">
+            <h3 class="font-mono" style="font-size:0.85rem; color:#cbd5e1; margin-bottom:1rem;">RECEIVED SUBMISSIONS FOR SCORING</h3>
+            <div id="judging-submissions-list"></div>
+          </div>
+
+          <!-- Active Submission Scoring Form -->
+          <div class="glass-panel p-6" id="judging-form-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #334155; padding-bottom:0.5rem;">
+              <h3 id="judging-active-name" class="font-mono text-gradient" style="font-size:1.1rem; font-weight:800;">Participant Submission</h3>
+              <button id="toggle-leaderboard-btn" class="btn-cyber" style="font-size:0.7rem; padding:0.35rem 0.75rem;">REVEAL LEADERBOARD</button>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+              <label class="font-mono" style="font-size:0.75rem; color:#94a3b8;">Submitted Prompt:</label>
+              <div id="judging-active-prompt" class="font-mono" style="background:#06080d; border:1px solid #334155; border-radius:0.5rem; padding:0.75rem; font-size:0.8rem; color:#f1f5f9; margin-top:0.25rem;">Select an entry from the left list</div>
+            </div>
+
+            <div style="margin-bottom:1rem;">
+              <label class="font-mono" style="font-size:0.75rem; color:#c084fc;">Submitted Recreated Image:</label>
+              <div style="background:#06080d; border:1px solid rgba(112,0,255,0.3); border-radius:0.5rem; padding:0.5rem; text-align:center; margin-top:0.25rem;">
+                <img id="judging-active-image-preview" src="" style="max-height:180px; object-fit:contain; display:none;" />
+                <p id="judging-no-image-text" style="color:#64748b; font-size:0.75rem;">No recreated image uploaded</p>
+              </div>
+            </div>
+
+            <!-- Scoring Form Inputs -->
+            <form id="judging-score-form" style="display:flex; flex-direction:column; gap:0.75rem;" class="font-mono text-xs">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                <div>
+                  <label>Prompt Quality (/25)</label>
+                  <input type="number" id="score-creativity" min="0" max="25" value="20" required />
+                </div>
+                <div>
+                  <label>Image Similarity (/40)</label>
+                  <input type="number" id="score-quality" min="0" max="40" value="32" required />
+                </div>
+                <div>
+                  <label>Creativity (/20)</label>
+                  <input type="number" id="score-engineering" min="0" max="20" value="16" required />
+                </div>
+                <div>
+                  <label>Overall Accuracy (/15)</label>
+                  <input type="number" id="score-originality" min="0" max="15" value="12" required />
+                </div>
+              </div>
+
+              <div>
+                <label>Organiser Feedback / Comments</label>
+                <textarea id="score-comments" rows="2" placeholder="Excellent color match and compositional prompt structure..."></textarea>
+              </div>
+
+              <button type="submit" class="btn-emerald">Save Evaluation Score</button>
+            </form>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= VIEW 3: LEADERBOARD ================= -->
+    <section id="view-leaderboard" class="hidden" style="max-width:850px; margin:2rem auto;">
+      <div class="glass-panel-glow p-8 text-center" style="margin-bottom:1.5rem;">
+        <i data-lucide="trophy" style="width:48px; height:48px; color:#fbbf24; margin-bottom:0.5rem;"></i>
+        <h1 class="text-gradient font-mono" style="font-size:2rem; font-weight:800;">PROMPTX OFFICIAL LEADERBOARD</h1>
+        <p style="font-size:0.8rem; color:#94a3b8;">AI Image Recreation Competition Scores & Rankings</p>
+      </div>
+
+      <div id="leaderboard-locked-message" class="hidden glass-panel p-8 text-center font-mono">
+        <i data-lucide="lock" style="width:32px; height:32px; color:#fbbf24; margin-bottom:0.5rem;"></i>
+        <h3 style="color:#fff; font-size:1.1rem; margin-bottom:0.25rem;">RESULTS WILL BE REVEALED BY THE ORGANISER</h3>
+        <p style="color:#94a3b8; font-size:0.8rem;">The official leaderboard will be revealed after judging for the round is complete.</p>
+      </div>
+
+      <div id="leaderboard-rows-container"></div>
+    </section>
+
+  </main>
+
+  <!-- ORGANISER AUTHENTICATION MODAL -->
+  <div id="admin-auth-modal" class="modal-overlay hidden">
+    <div class="glass-panel-glow p-8" style="max-width:400px; width:100%; display:flex; flex-direction:column; gap:1.25rem; text-align:center;">
+      <i data-lucide="shield-check" style="width:48px; height:48px; color:var(--cyber-cyan); margin:0 auto;"></i>
+      <h2 class="text-gradient font-mono" style="font-size:1.5rem; font-weight:800;">ORGANISER PORTAL</h2>
+      <p style="font-size:0.75rem; color:#94a3b8;">Enter password to unlock Organiser Console</p>
+
+      <form id="admin-auth-modal-form" style="display:flex; flex-direction:column; gap:1rem;">
+        <input type="password" id="admin-modal-password-input" placeholder="Enter Organiser Password" required />
+        <div style="display:flex; gap:0.5rem;">
+          <button type="button" id="close-auth-modal-btn" class="btn-secondary" style="flex:1;">Cancel</button>
+          <button type="submit" class="btn-cyber" style="flex:1;">Unlock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONFIRM SUBMISSION MODAL -->
+  <div id="submission-confirm-modal" class="modal-overlay hidden">
+    <div class="glass-panel-glow p-6" style="max-width:420px; width:100%; display:flex; flex-direction:column; gap:1rem;">
+      <h3 class="font-mono" style="font-size:1.1rem; font-weight:800; color:#fff;">Confirm Final Submission?</h3>
+      <p style="font-size:0.8rem; color:#cbd5e1; line-height:1.5;">Are you sure you want to submit your final entry? Your prompt and uploaded recreated image cannot be edited after submission.</p>
+      <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+        <button id="modal-cancel-btn" class="btn-secondary" style="flex:1;">Cancel</button>
+        <button id="modal-confirm-btn" class="btn-emerald" style="flex:1;">Confirm & Lock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL SUBMITTED ENTRY & RECREATED IMAGE INSPECTOR MODAL -->
+  <div id="participant-detail-modal" class="modal-overlay hidden">
+    <div class="glass-panel-glow p-6" style="max-width:850px; width:100%; display:flex; flex-direction:column; gap:1rem; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:0.75rem;">
+        <h3 id="modal-p-name" class="font-mono text-gradient" style="font-size:1.25rem; font-weight:800;">Participant Entry Inspection</h3>
+        <button id="close-detail-modal-btn" class="btn-secondary" style="padding:0.25rem 0.5rem;">✕</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div>
+          <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:0.5rem;" class="font-mono">Reference Image (Original):</label>
+          <div style="border:1px solid #334155; border-radius:0.75rem; overflow:hidden; background:#000; text-align:center;">
+            <img id="modal-ref-image" src="" style="max-height:220px; object-fit:contain;" />
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:0.75rem; color:#c084fc; margin-bottom:0.5rem;" class="font-mono">Recreated Image (Participant AI):</label>
+          <div style="border:1px solid rgba(112,0,255,0.4); border-radius:0.75rem; overflow:hidden; background:#000; text-align:center;">
+            <img id="modal-recreated-image" src="" style="max-height:220px; object-fit:contain;" />
+          </div>
+          <a id="download-submitted-image-link" href="#" download="recreated_image.png" class="btn-secondary" style="width:100%; margin-top:0.5rem; justify-content:center; font-size:0.75rem;">
+            <i data-lucide="download" style="width:14px"></i> Download Recreated Image
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:0.5rem;" class="font-mono">Submitted Prompt:</label>
+        <div id="modal-p-prompt" class="font-mono" style="background:#06080d; border:1px solid #334155; border-radius:0.75rem; padding:1rem; font-size:0.85rem; color:#f1f5f9; whitespace-pre-line;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer style="border-top:1px solid rgba(255,255,255,0.08); padding:1rem; text-align:center; font-size:0.75rem; color:#64748b;" class="font-mono">
+    PROMPTX &bull; AI Image Recreation Competition &bull; Supabase & Realtime Powered
+  </footer>
+
+  <!-- Core JavaScript Modules -->
+  <script src="js/supabase.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

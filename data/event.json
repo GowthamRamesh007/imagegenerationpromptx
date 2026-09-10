@@ -1,0 +1,19 @@
+{
+  "stage": "WAITING",
+  "scenario": "",
+  "scenarioRevealed": false,
+  "joiningCode": "PROMPTX2026",
+  "timer": {
+    "duration": 1800,
+    "remaining": 1800,
+    "isRunning": false,
+    "startedAt": null
+  },
+  "config": {
+    "maxGenerations": 5,
+    "allowRegen": true,
+    "maxPromptLength": 2000,
+    "maxStoryLength": 5000
+  },
+  "leaderboardRevealed": false
+}

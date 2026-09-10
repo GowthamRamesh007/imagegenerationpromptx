@@ -1,0 +1,8 @@
+media1.mp4 filter=lfs diff=lfs merge=lfs -text
+media2.mp4 filter=lfs diff=lfs merge=lfs -text
+media3.mp4 filter=lfs diff=lfs merge=lfs -text
+media4.mp4 filter=lfs diff=lfs merge=lfs -text
+media5.mp4 filter=lfs diff=lfs merge=lfs -text
+media6.mp4 filter=lfs diff=lfs merge=lfs -text
+media7.mp4 filter=lfs diff=lfs merge=lfs -text
+media/ filter=lfs diff=lfs merge=lfs -text

@@ -8,8 +8,8 @@
   'use strict';
 
   // Configurable Supabase credentials (override here or in window.SUPABASE_CONFIG)
-  const SUPABASE_URL = window.SUPABASE_URL || 'https://xyzcompany.supabase.co';
-  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+  const SUPABASE_URL = window.SUPABASE_URL || 'https://vawmwfkttzduxvxujadg.supabase.co';
+  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhd213Zmt0dHpkdXh2eHVqYWRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NTk5NTEsImV4cCI6MjEwNDMzNTk1MX0.UiqwPdNrMClEzgdUl9PCoXSFKLnNSZmL1gzkOuKeqJw';
 
   let client = null;
   let isRealtimeActive = false;

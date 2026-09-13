@@ -62,9 +62,14 @@
     }
   }
 
-  // --- PERSISTENCE & CROSS-TAB STORAGE SYNC ---
+  // --- PERSISTENCE & SESSION STORAGE SYNC ---
+  // Using sessionStorage and clearing leftover persistent storage on refresh ensures that refreshing the page resets the website back to the starting state for new event runs.
   function loadDatabase() {
-    const saved = localStorage.getItem(DB_KEY);
+    // Clear any previous persistent storage so refreshes always start fresh
+    localStorage.removeItem(DB_KEY);
+    localStorage.removeItem('promptx_active_participant');
+
+    const saved = sessionStorage.getItem(DB_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -78,7 +83,7 @@
   }
 
   function saveDatabase() {
-    localStorage.setItem(DB_KEY, JSON.stringify(state.db));
+    sessionStorage.setItem(DB_KEY, JSON.stringify(state.db));
   }
 
   function bindStorageSync() {
@@ -102,7 +107,7 @@
   }
 
   function restoreParticipantSession() {
-    const savedP = localStorage.getItem('promptx_active_participant');
+    const savedP = sessionStorage.getItem('promptx_active_participant');
     if (savedP) {
       try {
         state.participant = JSON.parse(savedP);
@@ -320,7 +325,7 @@
     }
 
     saveDatabase();
-    localStorage.setItem('promptx_active_participant', JSON.stringify(state.participant));
+    sessionStorage.setItem('promptx_active_participant', JSON.stringify(state.participant));
 
     renderUI();
   }
@@ -499,9 +504,9 @@
   }
 
   function handleResetEvent() {
-    if (confirm('⚠️ RESET EVENT: Wipe all participants, prompts, submissions, and scores?')) {
-      localStorage.removeItem(DB_KEY);
-      localStorage.removeItem('promptx_active_participant');
+    if (confirm('⚠️ RESET EVENT: Are you sure you want to completely reset the event? This will wipe all registered participants, prompts, submissions, and scores so you can start a fresh competition.')) {
+      sessionStorage.clear();
+      localStorage.clear();
       location.reload();
     }
   }

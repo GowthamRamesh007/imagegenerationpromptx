@@ -34,7 +34,7 @@
             <span id="nav-round-badge" class="badge badge-cyan">ROUND 1</span>
             <span id="nav-stage-badge" class="badge badge-amber">WAITING ROOM</span>
           </div>
-          <span style="font-size:0.7rem; color:#94a3b8;">Recreate Images using prompts &bull; Where Creativity Meets AI</span>
+          <span style="font-size:0.7rem; color:#94a3b8;">Recreate Images using Prompts &bull; Where Creativity Meets AI</span>
         </div>
       </div>
 
@@ -239,7 +239,12 @@
             <button id="tab-judging-btn" class="btn-secondary">Judging Matrix (/100)</button>
           </div>
 
-          <div style="display:flex; gap:0.5rem;">
+          <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:0.35rem;" class="font-mono text-xs">
+              <span style="color:#cbd5e1;">Timer (mins):</span>
+              <input type="number" id="admin-timer-input" min="1" max="180" value="30" style="width:60px; padding:0.3rem 0.5rem; font-size:0.75rem; text-align:center;" />
+              <button id="admin-set-timer-btn" class="btn-secondary" style="font-size:0.75rem; padding:0.4rem 0.6rem; border-color:var(--cyber-cyan); color:var(--cyber-cyan);"><i data-lucide="clock" style="width:13px"></i> Set Timer</button>
+            </div>
             <button id="admin-load-demo-btn" class="btn-secondary" style="border-color:var(--cyber-purple); color:#c084fc;"><i data-lucide="database" style="width:14px"></i> Load Demo Submissions</button>
             <button id="admin-start-event-btn" class="btn-emerald" style="font-size:0.75rem; padding:0.5rem 1rem;">START ROUND</button>
             <button id="admin-pause-event-btn" class="btn-secondary">Pause</button>
@@ -445,7 +450,7 @@
 
   <!-- FOOTER -->
   <footer style="border-top:1px solid rgba(255,255,255,0.08); padding:1rem; text-align:center; font-size:0.75rem; color:#64748b;" class="font-mono">
-    PROMPTX &bull; Recreate images using prompts &bull; Organised by AI&DS Department
+    PROMPTX &bull; Recreate Images using Prompts &bull; Organised by AI&DS Deparrtment
   </footer>
 
   <!-- Core JavaScript Modules -->

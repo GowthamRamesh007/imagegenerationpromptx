@@ -62,14 +62,12 @@
     }
   }
 
-  // --- PERSISTENCE & SESSION STORAGE SYNC ---
-  // Using sessionStorage and clearing leftover persistent storage on refresh ensures that refreshing the page resets the website back to the starting state for new event runs.
-  function loadDatabase() {
-    // Clear any previous persistent storage so refreshes always start fresh
-    localStorage.removeItem(DB_KEY);
-    localStorage.removeItem('promptx_active_participant');
+  // --- PERSISTENCE & CROSS-TAB/CROSS-WINDOW SYNC ---
+  // Store state in localStorage and use BroadcastChannel + Storage listener to sync registered teams and submissions live across all participant and admin tabs/windows.
+  const broadcast = window.BroadcastChannel ? new BroadcastChannel('promptx_channel') : null;
 
-    const saved = sessionStorage.getItem(DB_KEY);
+  function loadDatabase() {
+    const saved = localStorage.getItem(DB_KEY) || sessionStorage.getItem(DB_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -83,7 +81,12 @@
   }
 
   function saveDatabase() {
-    sessionStorage.setItem(DB_KEY, JSON.stringify(state.db));
+    const serialized = JSON.stringify(state.db);
+    localStorage.setItem(DB_KEY, serialized);
+    sessionStorage.setItem(DB_KEY, serialized);
+    if (broadcast) {
+      broadcast.postMessage({ type: 'DB_UPDATE' });
+    }
   }
 
   function bindStorageSync() {
@@ -94,6 +97,16 @@
         renderUI();
       }
     });
+
+    if (broadcast) {
+      broadcast.onmessage = (e) => {
+        if (e.data && e.data.type === 'DB_UPDATE') {
+          loadDatabase();
+          restoreParticipantSession();
+          renderUI();
+        }
+      };
+    }
   }
 
   function bindSupabaseRealtime() {
@@ -326,6 +339,7 @@
 
     saveDatabase();
     sessionStorage.setItem('promptx_active_participant', JSON.stringify(state.participant));
+    localStorage.setItem('promptx_active_participant', JSON.stringify(state.participant));
 
     renderUI();
   }

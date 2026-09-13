@@ -120,13 +120,18 @@
   }
 
   function restoreParticipantSession() {
-    const savedP = sessionStorage.getItem('promptx_active_participant');
+    const savedP = localStorage.getItem('promptx_active_participant') || sessionStorage.getItem('promptx_active_participant');
     if (savedP) {
       try {
         state.participant = JSON.parse(savedP);
         const pId = state.participant.id;
         const currentRound = state.db.event.currentRound || 1;
         const subKey = `${pId}_r${currentRound}`;
+
+        // Verify participant still exists in db
+        if (state.db.participants[pId]) {
+          state.participant = state.db.participants[pId];
+        }
 
         if (state.db.prompts[pId]) {
           state.currentPromptText = state.db.prompts[pId].prompt || '';
@@ -244,7 +249,8 @@
 
     document.getElementById('modal-confirm-btn')?.addEventListener('click', handleConfirmSubmission);
 
-    // Organiser Stage Controls (START / PAUSE / RESUME / END / RESET)
+    // Organiser Stage Controls (START / PAUSE / RESUME / END / RESET / SET TIMER)
+    document.getElementById('admin-set-timer-btn')?.addEventListener('click', handleSetTimer);
     document.getElementById('admin-start-event-btn')?.addEventListener('click', () => setEventStage('RUNNING', true));
     document.getElementById('admin-pause-event-btn')?.addEventListener('click', () => setEventStage('PAUSED', false));
     document.getElementById('admin-resume-event-btn')?.addEventListener('click', () => setEventStage('RUNNING', true));
@@ -439,6 +445,23 @@
     }
 
     saveDatabase();
+    renderUI();
+  }
+
+  function handleSetTimer() {
+    const minsInput = document.getElementById('admin-timer-input');
+    const mins = Number(minsInput ? minsInput.value : 30);
+
+    if (isNaN(mins) || mins <= 0) {
+      return alert('Please enter a valid positive number of minutes for the timer.');
+    }
+
+    const durationSecs = Math.floor(mins * 60);
+    state.db.event.timer.duration = durationSecs;
+    state.db.event.timer.remaining = durationSecs;
+
+    saveDatabase();
+    alert(`Timer updated to ${mins} minutes!`);
     renderUI();
   }
 

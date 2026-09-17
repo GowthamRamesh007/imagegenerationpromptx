@@ -70,7 +70,7 @@
   // Store state in localStorage and use BroadcastChannel + Storage listener + 1s active polling loop to guarantee registered teams and submissions update live across all participant and admin tabs/windows.
   const broadcast = window.BroadcastChannel ? new BroadcastChannel('promptx_channel') : null;
 
-  function loadDatabase() {
+  async function loadDatabase() {
     const saved = localStorage.getItem(DB_KEY) || sessionStorage.getItem(DB_KEY);
     if (saved) {
       try {
@@ -89,6 +89,23 @@
       }
     } else {
       saveDatabase();
+    }
+
+    // Pull from Supabase Cloud DB if active
+    if (window.PromptXSupabase && window.PromptXSupabase.fetchParticipantsCloud) {
+      const cloudParticipants = await window.PromptXSupabase.fetchParticipantsCloud();
+      if (cloudParticipants && Array.isArray(cloudParticipants)) {
+        cloudParticipants.forEach(cp => {
+          const pId = `p_${cp.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+          state.db.participants[pId] = {
+            id: pId,
+            name: cp.team_name,
+            members: cp.members,
+            status: cp.status,
+            qualifiedRound: cp.current_qualified_round || 1
+          };
+        });
+      }
     }
   }
 
@@ -381,6 +398,11 @@
     // Automatically qualify for Round 1 if not present
     if (!state.db.qualifiers.round1.includes(pId)) {
       state.db.qualifiers.round1.push(pId);
+    }
+
+    // Sync team registration to Supabase Cloud Database if configured
+    if (window.PromptXSupabase && window.PromptXSupabase.registerParticipantCloud) {
+      window.PromptXSupabase.registerParticipantCloud(state.participant);
     }
 
     saveDatabase();

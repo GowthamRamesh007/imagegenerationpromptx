@@ -289,7 +289,27 @@ input:focus, textarea:focus {
 .badge-rose { background: rgba(244, 63, 94, 0.15); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.35); }
 .badge-purple { background: rgba(112, 0, 255, 0.15); color: #c084fc; border: 1px solid rgba(112, 0, 255, 0.35); }
 
-/* Modal Overlay */
+/* Interactive UI Enhancements */
+.style-card {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.style-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 240, 255, 0.25);
+  border-color: var(--cyber-cyan) !important;
+}
+
+.style-leader-row {
+  transition: all 0.2s ease;
+}
+
+.style-leader-row:hover {
+  transform: translateX(4px);
+  border-color: var(--cyber-cyan);
+  background: rgba(0, 240, 255, 0.05);
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

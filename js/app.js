@@ -91,20 +91,42 @@
       saveDatabase();
     }
 
-    // Pull from Supabase Cloud DB if active
+    // Pull event state (stage, current round, reference image, timer) from Supabase Cloud DB
+    if (window.PromptXSupabase && window.PromptXSupabase.fetchEventState) {
+      try {
+        const cloudEvent = await window.PromptXSupabase.fetchEventState();
+        if (cloudEvent) {
+          if (cloudEvent.stage) state.db.event.stage = cloudEvent.stage;
+          if (cloudEvent.current_round) state.db.event.currentRound = cloudEvent.current_round;
+          if (cloudEvent.reference_image) state.db.event.referenceImage = cloudEvent.reference_image;
+          if (cloudEvent.timer_remaining != null && !state.db.event.timer.isRunning) {
+            state.db.event.timer.remaining = cloudEvent.timer_remaining;
+            state.db.event.timer.isRunning = cloudEvent.timer_is_running || false;
+          }
+        }
+      } catch (e) {
+        console.warn('[App] Could not fetch initial event state:', e);
+      }
+    }
+
+    // Pull participants from Supabase Cloud DB if active
     if (window.PromptXSupabase && window.PromptXSupabase.fetchParticipantsCloud) {
-      const cloudParticipants = await window.PromptXSupabase.fetchParticipantsCloud();
-      if (cloudParticipants && Array.isArray(cloudParticipants)) {
-        cloudParticipants.forEach(cp => {
-          const pId = `p_${cp.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-          state.db.participants[pId] = {
-            id: pId,
-            name: cp.team_name,
-            members: cp.members,
-            status: cp.status,
-            qualifiedRound: cp.current_qualified_round || 1
-          };
-        });
+      try {
+        const cloudParticipants = await window.PromptXSupabase.fetchParticipantsCloud();
+        if (cloudParticipants && Array.isArray(cloudParticipants)) {
+          cloudParticipants.forEach(cp => {
+            const pId = `p_${cp.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+            state.db.participants[pId] = {
+              id: pId,
+              name: cp.team_name,
+              members: cp.members,
+              status: cp.status,
+              qualifiedRound: cp.current_qualified_round || 1
+            };
+          });
+        }
+      } catch (e) {
+        console.warn('[App] Could not fetch initial participants:', e);
       }
     }
   }
@@ -142,24 +164,52 @@
 
   function bindSupabaseRealtime() {
     if (window.PromptXSupabase && window.PromptXSupabase.subscribeRealtime) {
-      window.PromptXSupabase.subscribeRealtime(function(newRow) {
-        console.log('[REALTIME] INSERT received in app — adding to dashboard:', newRow);
-        if (!newRow || !newRow.team_name) return;
-        var pId = 'p_' + newRow.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        if (!state.db.participants[pId]) {
-          state.db.participants[pId] = {
-            id: pId,
-            name: newRow.team_name,
-            members: newRow.members || '',
-            status: newRow.status || 'idle',
-            qualifiedRound: newRow.current_qualified_round || 1
-          };
-          console.log('[ADMIN] Participant added to dashboard:', newRow.team_name);
-          if (state.role === 'admin') {
-            renderAdminDashboard();
+      window.PromptXSupabase.subscribeRealtime(
+        // 1. Participant Insert Handler
+        function(newRow) {
+          console.log('[REALTIME] Participant INSERT received in app:', newRow);
+          if (!newRow || !newRow.team_name) return;
+          var pId = 'p_' + newRow.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          if (!state.db.participants[pId]) {
+            state.db.participants[pId] = {
+              id: pId,
+              name: newRow.team_name,
+              members: newRow.members || '',
+              status: newRow.status || 'idle',
+              qualifiedRound: newRow.current_qualified_round || 1
+            };
+            console.log('[ADMIN] Participant added to dashboard:', newRow.team_name);
+            if (state.role === 'admin') {
+              renderAdminDashboard();
+            }
           }
+        },
+        // 2. Event State Change Handler (Instant Realtime for Stage, Reference Image, Round, Timer)
+        function(cloudEvent) {
+          if (!cloudEvent) return;
+          console.log('[REALTIME] Event state update received in app:', cloudEvent);
+          var changed = false;
+          if (cloudEvent.stage && state.db.event.stage !== cloudEvent.stage) {
+            state.db.event.stage = cloudEvent.stage;
+            changed = true;
+          }
+          if (cloudEvent.current_round && state.db.event.currentRound !== cloudEvent.current_round) {
+            state.db.event.currentRound = cloudEvent.current_round;
+            changed = true;
+          }
+          if (cloudEvent.reference_image && state.db.event.referenceImage !== cloudEvent.reference_image) {
+            state.db.event.referenceImage = cloudEvent.reference_image;
+            changed = true;
+          }
+          if (cloudEvent.timer_remaining != null && !state.db.event.timer.isRunning) {
+            state.db.event.timer.remaining = cloudEvent.timer_remaining;
+            state.db.event.timer.isRunning = cloudEvent.timer_is_running || false;
+            changed = true;
+          }
+          saveDatabase();
+          renderUI();
         }
-      });
+      );
     }
   }
 
@@ -190,10 +240,39 @@
   }
 
   // --- TIMER LOOP (timer only — participants come via Supabase Realtime) ---
+  // --- TIMER LOOP ---
+  // Polls Supabase every 3s so all devices stay in sync with event stage + participants.
+  var _pollCounter = 0;
   function startTimerLoop() {
     if (state.timerInterval) clearInterval(state.timerInterval);
-
-    state.timerInterval = setInterval(function() {
+    state.timerInterval = setInterval(async function() {
+      _pollCounter++;
+      if (_pollCounter % 3 === 0) {
+        if (window.PromptXSupabase && window.PromptXSupabase.fetchEventState) {
+          var cloudEvent = await window.PromptXSupabase.fetchEventState();
+          if (cloudEvent) {
+            state.db.event.stage = cloudEvent.stage || state.db.event.stage;
+            state.db.event.currentRound = cloudEvent.current_round || state.db.event.currentRound;
+            if (cloudEvent.reference_image) state.db.event.referenceImage = cloudEvent.reference_image;
+            if (!state.db.event.timer.isRunning) {
+              if (cloudEvent.timer_remaining != null) state.db.event.timer.remaining = cloudEvent.timer_remaining;
+              state.db.event.timer.isRunning = cloudEvent.timer_is_running || false;
+            }
+          }
+        }
+        if (window.PromptXSupabase && window.PromptXSupabase.fetchParticipantsCloud) {
+          var cloudParticipants = await window.PromptXSupabase.fetchParticipantsCloud();
+          if (cloudParticipants && Array.isArray(cloudParticipants)) {
+            cloudParticipants.forEach(function(cp) {
+              var pId = 'p_' + cp.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+              if (!state.db.participants[pId]) {
+                state.db.participants[pId] = { id: pId, name: cp.team_name, members: cp.members, status: cp.status, qualifiedRound: cp.current_qualified_round || 1 };
+              }
+            });
+          }
+        }
+        renderUI();
+      }
       if (state.db.event.timer.isRunning) {
         if (state.db.event.timer.remaining > 0) {
           state.db.event.timer.remaining -= 1;
@@ -531,6 +610,9 @@
     state.db.event.timer.remaining = durationSecs;
 
     saveDatabase();
+    if (window.PromptXSupabase && window.PromptXSupabase.saveEventState) {
+      window.PromptXSupabase.saveEventState(state.db.event);
+    }
     alert(`Timer updated to ${mins} minutes!`);
     renderUI();
   }
@@ -542,6 +624,10 @@
       state.db.event.timer.remaining = state.db.event.timer.duration || 1800;
     }
     saveDatabase();
+    // Push event state to Supabase so participants on other devices get it instantly
+    if (window.PromptXSupabase && window.PromptXSupabase.saveEventState) {
+      window.PromptXSupabase.saveEventState(state.db.event);
+    }
     renderUI();
   }
 
@@ -550,6 +636,9 @@
     if (urlInput) {
       state.db.event.referenceImage = urlInput;
       saveDatabase();
+      if (window.PromptXSupabase && window.PromptXSupabase.saveEventState) {
+        window.PromptXSupabase.saveEventState(state.db.event);
+      }
       alert('Reference Image URL updated and revealed to participants!');
       renderUI();
     }
@@ -572,6 +661,9 @@
         state.db.event.referenceImage = publicUrl;
         document.getElementById('admin-ref-image-url-input').value = publicUrl;
         saveDatabase();
+        if (window.PromptXSupabase && window.PromptXSupabase.saveEventState) {
+          window.PromptXSupabase.saveEventState(state.db.event);
+        }
         alert('Reference Image file uploaded and updated!');
         renderUI();
       } catch (err) {
@@ -583,6 +675,9 @@
   function switchRound(roundNum) {
     state.db.event.currentRound = roundNum;
     saveDatabase();
+    if (window.PromptXSupabase && window.PromptXSupabase.saveEventState) {
+      window.PromptXSupabase.saveEventState(state.db.event);
+    }
     renderUI();
   }
 
@@ -1147,4 +1242,8 @@
   }
 
 })();
+
+
+
+
 

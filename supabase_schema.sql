@@ -149,3 +149,5 @@ CREATE POLICY "event_state_all" ON public.event_state FOR ALL USING (true) WITH 
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.participants;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.event_state;
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.submissions;

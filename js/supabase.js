@@ -72,6 +72,7 @@
     }
   }
 
+  // --- PARTICIPANT OPERATIONS ---
   async function registerParticipantCloud(participant) {
     if (!client || !isRealtimeActive) return null;
     try {
@@ -108,8 +109,81 @@
     }
   }
 
-  // --- REALTIME SUBSCRIPTIONS (Participants + Event State Broadcast/Changes) ---
-  function subscribeRealtime(onParticipantInsert, onEventStateChange) {
+  // --- SUBMISSIONS OPERATIONS (Recreated Images & Prompts) ---
+  async function saveSubmissionCloud(submission) {
+    var payload = {
+      sub_key: submission.subKey,
+      participant_id: submission.participantId,
+      participant_name: submission.participantName,
+      round_number: submission.round || 1,
+      prompt: submission.prompt || '',
+      recreated_image_url: submission.imageUrl || '',
+      submitted_at: submission.submittedAt || new Date().toISOString(),
+      locked: true
+    };
+
+    // 1. Instant Realtime Broadcast to Admin Dashboard (<50ms)
+    if (activeRealtimeChannel) {
+      try {
+        activeRealtimeChannel.send({
+          type: 'broadcast',
+          event: 'submission_update',
+          payload: payload
+        });
+        console.log('[REALTIME] Submission broadcast dispatched:', payload.sub_key);
+      } catch (err) {
+        console.warn('[REALTIME] Submission broadcast error:', err.message);
+      }
+    }
+
+    // 2. Persist to Supabase Database
+    if (client && isRealtimeActive) {
+      try {
+        var result = await client.from('submissions').upsert({
+          sub_key: payload.sub_key,
+          participant_id: payload.participant_id,
+          participant_name: payload.participant_name,
+          round_number: payload.round_number,
+          prompt: payload.prompt,
+          recreated_image_url: payload.recreated_image_url,
+          submitted_at: payload.submitted_at,
+          locked: true
+        }, { onConflict: 'sub_key' }).select();
+
+        if (result.error) {
+          console.warn('[PROMPTX Supabase] Submission DB save warning:', result.error.message);
+        } else {
+          console.log('[PROMPTX Supabase] Submission saved to DB with image:', result.data);
+        }
+
+        // Update participant status to submitted
+        await client.from('participants').update({
+          status: 'submitted',
+          last_activity: new Date().toISOString()
+        }).eq('team_name', payload.participant_name);
+
+        return result.data;
+      } catch (err) {
+        console.warn('[PROMPTX Supabase] Submission save exception:', err.message);
+      }
+    }
+    return null;
+  }
+
+  async function fetchSubmissionsCloud() {
+    if (!client || !isRealtimeActive) return null;
+    try {
+      var result = await client.from('submissions').select('*');
+      if (result.error) throw result.error;
+      return result.data;
+    } catch (err) {
+      console.warn('[PROMPTX Supabase] Fetch Submissions error:', err.message);
+      return null;
+    }
+  }
+
+  // --- REALTIME SUBSCRIPTIONS (Participants + Event State + Submissions) ---
+  function subscribeRealtime(onParticipantInsert, onEventStateChange, onSubmissionInsert) {
     if (!client || !isRealtimeActive) {
       console.warn('[REALTIME] Supabase not initialized.');
       return null;
@@ -132,16 +206,30 @@
       // 2. Event State Postgres Changes (Stage, Round, Reference Image, Timer)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'event_state' }, function(payload) {
         console.log('[REALTIME] Event state DB change received:', payload.new);
-        if (onEventStateChange && payload.new) onEventStateChange(payload.new);
+        var data = payload && payload.new ? payload.new : payload;
+        if (onEventStateChange && data) onEventStateChange(data);
       })
-      // 3. Instant Broadcast channel for zero-latency cross-device sync
+      // 3. Submissions Postgres Changes (New submitted recreated image)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, function(payload) {
+        console.log('[REALTIME] Submission DB change received:', payload.new);
+        var data = payload && payload.new ? payload.new : payload;
+        if (onSubmissionInsert && data) onSubmissionInsert(data);
+      })
+      // 4. Instant Broadcast channel for Event State
       .on('broadcast', { event: 'event_state_update' }, function(envelope) {
-        console.log('[REALTIME] Event state broadcast received:', envelope.payload);
-        if (onEventStateChange && envelope.payload) onEventStateChange(envelope.payload);
+        console.log('[REALTIME] Event state broadcast received:', envelope);
+        var data = envelope && envelope.payload ? envelope.payload : envelope;
+        if (onEventStateChange && data) onEventStateChange(data);
+      })
+      // 5. Instant Broadcast channel for Submissions (Recreated Images)
+      .on('broadcast', { event: 'submission_update' }, function(envelope) {
+        console.log('[REALTIME] Submission broadcast received:', envelope);
+        var data = envelope && envelope.payload ? envelope.payload : envelope;
+        if (onSubmissionInsert && data) onSubmissionInsert(data);
       })
       .subscribe(function(status) {
         if (status === 'SUBSCRIBED') {
-          console.log('[REALTIME] Connected — subscribed to participants & event state updates.');
+          console.log('[REALTIME] Connected — subscribed to participants, event state, & submissions.');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('[REALTIME ERROR] Channel error on realtime subscription.');
         } else if (status === 'TIMED_OUT') {
@@ -215,6 +303,8 @@
     resetEventDatabase: resetEventDatabase,
     registerParticipantCloud: registerParticipantCloud,
     fetchParticipantsCloud: fetchParticipantsCloud,
+    saveSubmissionCloud: saveSubmissionCloud,
+    fetchSubmissionsCloud: fetchSubmissionsCloud,
     subscribeRealtime: subscribeRealtime,
     saveEventState: saveEventState,
     fetchEventState: fetchEventState,

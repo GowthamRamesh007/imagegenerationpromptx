@@ -321,12 +321,18 @@
       }
     });
 
-    // Image Upload Handlers
+    // Image Upload & Paste Handlers
     const dropzone = document.getElementById('image-upload-dropzone');
     const imageInput = document.getElementById('recreated-image-input');
+    const urlInput = document.getElementById('participant-image-url-input');
+    const loadUrlBtn = document.getElementById('participant-load-url-btn');
 
     if (dropzone && imageInput) {
-      dropzone.addEventListener('click', () => imageInput.click());
+      dropzone.addEventListener('click', (e) => {
+        if (e.target !== urlInput && e.target !== loadUrlBtn) {
+          imageInput.click();
+        }
+      });
 
       dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -352,9 +358,31 @@
       });
     }
 
+    // Direct Image URL Load Button
+    const handleUrlLoad = () => {
+      if (!urlInput) return;
+      const url = urlInput.value.trim();
+      if (!url) return alert('Please enter an image URL');
+      state.uploadedImageBase64 = url;
+      renderImagePreview();
+    };
+
+    loadUrlBtn?.addEventListener('click', handleUrlLoad);
+    urlInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleUrlLoad();
+      }
+    });
+
+    // Global Clipboard Paste (Ctrl+V anywhere in participant arena)
+    window.addEventListener('paste', handleGlobalPaste);
+
     document.getElementById('remove-image-btn')?.addEventListener('click', () => {
       state.uploadedImageBase64 = null;
-      document.getElementById('recreated-image-input').value = '';
+      const fileInput = document.getElementById('recreated-image-input');
+      if (fileInput) fileInput.value = '';
+      if (urlInput) urlInput.value = '';
       renderImagePreview();
     });
 
@@ -533,6 +561,55 @@
     }
   }
 
+  function handleGlobalPaste(e) {
+    if (state.role !== 'participant' || !state.participant) return;
+
+    // 1. Check for image files in clipboardData items (screenshots, copied images, Ctrl+V)
+    if (e.clipboardData && e.clipboardData.items) {
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            console.log('[PARTICIPANT] Image pasted from clipboard:', file.type, file.size);
+            handleImageFile(file);
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. Check for image files in clipboardData.files
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      for (let i = 0; i < e.clipboardData.files.length; i++) {
+        const file = e.clipboardData.files[i];
+        if (file.type.indexOf('image') !== -1) {
+          e.preventDefault();
+          console.log('[PARTICIPANT] Image file pasted:', file.type, file.size);
+          handleImageFile(file);
+          return;
+        }
+      }
+    }
+
+    // 3. Check if text pasted is an image URL and not inside the prompt textarea
+    const activeEl = document.activeElement;
+    if (activeEl && activeEl.id === 'prompt-editor-textarea') {
+      return; // Allow normal text pasting inside prompt textarea
+    }
+
+    const pastedText = (e.clipboardData || window.clipboardData)?.getData('text');
+    if (pastedText && (pastedText.startsWith('http://') || pastedText.startsWith('https://') || pastedText.startsWith('data:image/'))) {
+      e.preventDefault();
+      console.log('[PARTICIPANT] Image URL pasted:', pastedText);
+      state.uploadedImageBase64 = pastedText.trim();
+      const urlInput = document.getElementById('participant-image-url-input');
+      if (urlInput) urlInput.value = pastedText.trim();
+      renderImagePreview();
+    }
+  }
+
   async function handleImageFile(file) {
     try {
       if (window.PromptXSupabase && window.PromptXSupabase.uploadImage) {
@@ -623,6 +700,12 @@
     if (stage === 'RUNNING' && state.db.event.timer.remaining <= 0) {
       state.db.event.timer.remaining = state.db.event.timer.duration || 1800;
     }
+    // If admin has typed or uploaded an image in scenario tab input, ensure state has it:
+    const refInput = document.getElementById('admin-ref-image-url-input');
+    if (refInput && refInput.value && refInput.value.trim()) {
+      state.db.event.referenceImage = refInput.value.trim();
+    }
+    console.log(`[ADMIN] Event stage set to: ${stage}, Round: ${state.db.event.currentRound}, Ref Image: ${state.db.event.referenceImage}`);
     saveDatabase();
     // Push event state to Supabase so participants on other devices get it instantly
     if (window.PromptXSupabase && window.PromptXSupabase.saveEventState) {
@@ -906,7 +989,13 @@
       // Reference Image Display
       const refImgEl = document.getElementById('reference-image-element');
       const roundNumBadge = document.getElementById('current-round-number-badge');
-      if (refImgEl) refImgEl.src = state.db.event.referenceImage || DEFAULT_REF_IMAGE;
+      const currentRefImage = state.db.event.referenceImage || DEFAULT_REF_IMAGE;
+      if (refImgEl) {
+        if (refImgEl.src !== currentRefImage) {
+          console.log('[PARTICIPANT] Setting reference image to:', currentRefImage);
+          refImgEl.src = currentRefImage;
+        }
+      }
       if (roundNumBadge) roundNumBadge.textContent = `ROUND ${currentRound}`;
 
       // Prompt textarea status & lock
@@ -1242,6 +1331,8 @@
   }
 
 })();
+
+
 
 
 

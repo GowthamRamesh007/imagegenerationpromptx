@@ -121,18 +121,18 @@
   }
 
   function bindStorageSync() {
-    window.addEventListener('storage', (e) => {
+    window.addEventListener('storage', async (e) => {
       if (e.key === DB_KEY) {
-        loadDatabase();
+        await loadDatabase();
         restoreParticipantSession();
         renderUI();
       }
     });
 
     if (broadcast) {
-      broadcast.onmessage = (e) => {
+      broadcast.onmessage = async (e) => {
         if (e.data && e.data.type === 'DB_UPDATE') {
-          loadDatabase();
+          await loadDatabase();
           restoreParticipantSession();
           renderUI();
         }
@@ -142,9 +142,9 @@
 
   function bindSupabaseRealtime() {
     if (window.PromptXSupabase && window.PromptXSupabase.subscribeRealtime) {
-      window.PromptXSupabase.subscribeRealtime((payload) => {
+      window.PromptXSupabase.subscribeRealtime(async (payload) => {
         console.log('[App Realtime Notification]:', payload);
-        loadDatabase();
+        await loadDatabase();
         renderUI();
       });
     }
@@ -176,17 +176,17 @@
     }
   }
 
-  // --- TIMER & LIVE DATA SYNC LOOP ---
+  // --- TIMER & REALTIME LIVE DATA SYNC LOOP ---
   function startTimerLoop() {
     if (state.timerInterval) clearInterval(state.timerInterval);
 
-    state.timerInterval = setInterval(() => {
-      // Continuously pull latest state to reflect live registered teams across windows
-      loadDatabase();
+    state.timerInterval = setInterval(async () => {
+      // Pull latest database state continuously (every 400ms) for instant sub-second team enrollment rendering
+      await loadDatabase();
 
       if (state.db.event.timer.isRunning) {
         if (state.db.event.timer.remaining > 0) {
-          state.db.event.timer.remaining -= 1;
+          state.db.event.timer.remaining -= 0.4;
           saveDatabase();
           renderTimerDisplay();
         } else {
@@ -198,7 +198,7 @@
       }
 
       renderUI();
-    }, 1000);
+    }, 400);
   }
 
   // --- EVENT BINDINGS ---

@@ -1,8 +1,8 @@
 /**
- * ⚡ PROMPTX — Dynamic AI Image Recreation Competition Engine
+ * âš¡ PROMPTX â€” Dynamic AI Image Recreation Competition Engine
  * Handles AI Image Recreation competition logic, 3-round qualification system,
  * recreated image uploading, real-time timer sync, scoring matrix (/100),
- * participant status tracking (🟢 WORKING, 🟡 IDLE, 🔵 SUBMITTED), hidden organiser portal,
+ * participant status tracking (ðŸŸ¢ WORKING, ðŸŸ¡ IDLE, ðŸ”µ SUBMITTED), hidden organiser portal,
  * and Supabase / Local Storage fallback sync.
  */
 
@@ -142,10 +142,23 @@
 
   function bindSupabaseRealtime() {
     if (window.PromptXSupabase && window.PromptXSupabase.subscribeRealtime) {
-      window.PromptXSupabase.subscribeRealtime(async (payload) => {
-        console.log('[App Realtime Notification]:', payload);
-        await loadDatabase();
-        renderUI();
+      window.PromptXSupabase.subscribeRealtime(function(newRow) {
+        console.log('[REALTIME] INSERT received in app — adding to dashboard:', newRow);
+        if (!newRow || !newRow.team_name) return;
+        var pId = 'p_' + newRow.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        if (!state.db.participants[pId]) {
+          state.db.participants[pId] = {
+            id: pId,
+            name: newRow.team_name,
+            members: newRow.members || '',
+            status: newRow.status || 'idle',
+            qualifiedRound: newRow.current_qualified_round || 1
+          };
+          console.log('[ADMIN] Participant added to dashboard:', newRow.team_name);
+          if (state.role === 'admin') {
+            renderAdminDashboard();
+          }
+        }
       });
     }
   }
@@ -176,17 +189,14 @@
     }
   }
 
-  // --- TIMER & REALTIME LIVE DATA SYNC LOOP ---
+  // --- TIMER LOOP (timer only — participants come via Supabase Realtime) ---
   function startTimerLoop() {
     if (state.timerInterval) clearInterval(state.timerInterval);
 
-    state.timerInterval = setInterval(async () => {
-      // Pull latest database state continuously (every 400ms) for instant sub-second team enrollment rendering
-      await loadDatabase();
-
+    state.timerInterval = setInterval(function() {
       if (state.db.event.timer.isRunning) {
         if (state.db.event.timer.remaining > 0) {
-          state.db.event.timer.remaining -= 0.4;
+          state.db.event.timer.remaining -= 1;
           saveDatabase();
           renderTimerDisplay();
         } else {
@@ -196,9 +206,7 @@
           renderTimerDisplay();
         }
       }
-
-      renderUI();
-    }, 400);
+    }, 1000);
   }
 
   // --- EVENT BINDINGS ---
@@ -603,7 +611,7 @@
   }
 
   async function handleResetEvent() {
-    if (confirm('⚠️ RESET EVENT: Are you sure you want to completely reset the event? This will wipe all registered participants, prompts, submissions, and scores so you can start a fresh competition.')) {
+    if (confirm('âš ï¸ RESET EVENT: Are you sure you want to completely reset the event? This will wipe all registered participants, prompts, submissions, and scores so you can start a fresh competition.')) {
       // Clear memory state
       state.db.participants = {};
       state.db.prompts = {};
@@ -894,7 +902,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
               <strong class="font-mono text-sm" style="color:#fff">${p.name}</strong>
               <span class="badge ${isSubmitted ? 'badge-cyan' : 'badge-amber'}">
-                ${isSubmitted ? '🔵 SUBMITTED' : p.status === 'typing' ? '🟢 WORKING' : '🟡 IDLE'}
+                ${isSubmitted ? 'ðŸ”µ SUBMITTED' : p.status === 'typing' ? 'ðŸŸ¢ WORKING' : 'ðŸŸ¡ IDLE'}
               </span>
             </div>
             <div style="background:#06080d; padding:0.5rem; border-radius:0.5rem; display:flex; gap:0.5rem; align-items:center; height:80px; overflow:hidden; margin-bottom:0.5rem">
@@ -931,7 +939,7 @@
     const modalPrompt = document.getElementById('modal-p-prompt');
     const downloadBtn = document.getElementById('download-submitted-image-link');
 
-    if (modalTitle) modalTitle.textContent = `${pName} — Round ${roundNum} Entry`;
+    if (modalTitle) modalTitle.textContent = `${pName} â€” Round ${roundNum} Entry`;
     if (modalRefImg) modalRefImg.src = refImg;
 
     if (sub && sub.imageUrl) {
@@ -1112,7 +1120,7 @@
 
     ranked.forEach((entry, i) => {
       const badgeClass = i === 0 ? 'badge-amber' : i === 1 ? 'badge-cyan' : 'badge-purple';
-      const rankText = i === 0 ? '🥇 1st Place' : i === 1 ? '🥈 2nd Place' : i === 2 ? '🥉 3rd Place' : `#${i + 1}`;
+      const rankText = i === 0 ? 'ðŸ¥‡ 1st Place' : i === 1 ? 'ðŸ¥ˆ 2nd Place' : i === 2 ? 'ðŸ¥‰ 3rd Place' : `#${i + 1}`;
 
       const row = document.createElement('div');
       row.className = 'glass-panel p-4 font-mono style-leader-row';
@@ -1139,3 +1147,4 @@
   }
 
 })();
+

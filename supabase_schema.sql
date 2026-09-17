@@ -1,4 +1,4 @@
--- ⚡ PROMPTX — AI Image Recreation Competition Supabase Database Schema
+-- âš¡ PROMPTX â€” AI Image Recreation Competition Supabase Database Schema
 -- Run this script in the Supabase SQL Editor (https://app.supabase.com -> SQL Editor)
 
 -- 1. Enable UUID Extension
@@ -119,7 +119,7 @@ CREATE POLICY "Allow all access to qualifiers" ON public.qualifiers FOR ALL USIN
 
 -- 9. INITIAL EVENT & ROUND SEED DATA
 INSERT INTO public.events (event_name, status, current_round, results_revealed, joining_code)
-VALUES ('PROMPTX 2026 — AI Image Recreation', 'ACTIVE', 1, false, 'PROMPTX2026')
+VALUES ('PROMPTX 2026 â€” AI Image Recreation', 'ACTIVE', 1, false, 'PROMPTX2026')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.rounds (round_number, reference_image_url, status, timer_duration, timer_remaining)
@@ -128,3 +128,24 @@ VALUES
   (2, 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1000&q=80', 'UPCOMING', 1800, 1800),
   (3, 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=1000&q=80', 'UPCOMING', 1800, 1800)
 ON CONFLICT DO NOTHING;
+
+-- 10. EVENT STATE TABLE & REALTIME PUBLICATION
+CREATE TABLE IF NOT EXISTS public.event_state (
+  id INT PRIMARY KEY DEFAULT 1,
+  stage TEXT NOT NULL DEFAULT 'WAITING',
+  current_round INT NOT NULL DEFAULT 1,
+  timer_remaining INT NOT NULL DEFAULT 1800,
+  timer_is_running BOOLEAN NOT NULL DEFAULT FALSE,
+  reference_image TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO public.event_state (id, stage, current_round, timer_remaining, timer_is_running, reference_image)
+VALUES (1, 'WAITING', 1, 1800, false, 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80')
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.event_state ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "event_state_all" ON public.event_state FOR ALL USING (true) WITH CHECK (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.participants;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.event_state;

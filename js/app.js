@@ -710,21 +710,69 @@
     }
   }
 
-  async function handleImageFile(file) {
-    try {
-      if (window.PromptXSupabase && window.PromptXSupabase.uploadImage) {
-        state.uploadedImageBase64 = await window.PromptXSupabase.uploadImage(file);
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          state.uploadedImageBase64 = e.target.result;
-          renderImagePreview();
-        };
-        reader.readAsDataURL(file);
-        return;
+  // Client-side image compressor & optimizer (guarantees fast uploads & real-time broadcast delivery)
+  function compressImageFile(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        return resolve(null);
       }
-      renderImagePreview();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleImageFile(file) {
+    if (!file) return;
+    try {
+      console.log('[PARTICIPANT] Processing uploaded image file:', file.name || 'clipboard', file.type, file.size);
+      
+      // 1. First compress/optimize for instant high-quality preview & lightweight broadcast
+      const compressedDataUrl = await compressImageFile(file);
+      if (compressedDataUrl) {
+        state.uploadedImageBase64 = compressedDataUrl;
+        renderImagePreview();
+      }
+
+      // 2. Upload to Supabase Storage if active
+      if (window.PromptXSupabase && window.PromptXSupabase.uploadImage) {
+        try {
+          const cloudUrl = await window.PromptXSupabase.uploadImage(file);
+          if (cloudUrl) {
+            state.uploadedImageBase64 = cloudUrl;
+            renderImagePreview();
+          }
+        } catch (storageErr) {
+          console.warn('[PARTICIPANT] Storage upload notice, using optimized Data URI:', storageErr.message);
+        }
+      }
     } catch (err) {
+      console.error('[PARTICIPANT] Image processing error:', err);
       alert('Image upload failed: ' + err.message);
     }
   }
@@ -1435,6 +1483,7 @@
   }
 
 })();
+
 
 
 

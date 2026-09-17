@@ -1,154 +1,144 @@
 /**
- * ⚡ PROMPTX — Supabase Client & Realtime Storage Module
- * Manages Supabase Auth, PostgreSQL DB queries, Realtime subscriptions,
- * Image Storage uploads, and seamless local fallback.
+ * PROMPTX - Supabase Client & Realtime Storage Module
  */
 
 (function (window) {
   'use strict';
 
-  // Configurable Supabase credentials (override here or in window.SUPABASE_CONFIG)
-  const SUPABASE_URL = window.SUPABASE_URL || 'https://xyzcompany.supabase.co';
-  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+  const SUPABASE_URL = 'https://uuktdglerpgmaimxtzgc.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1a3RkZ2xlcnBnbWFpbXh0emdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2MDkxNDQsImV4cCI6MjEwNTE4NTE0NH0.olGOXmbNv9OSUfe5PyizzBAPQnQ4NOn1H1mH4-9tnn4';
 
   let client = null;
   let isRealtimeActive = false;
 
   function initSupabase() {
-    if (window.supabase && SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('xyzcompany')) {
+    if (window.supabase) {
       try {
         client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         isRealtimeActive = true;
-        console.log('[PROMPTX Supabase] Connected to Supabase Cloud DB:', SUPABASE_URL);
+        console.log('[PROMPTX Supabase] Connected:', SUPABASE_URL);
       } catch (err) {
-        console.warn('[PROMPTX Supabase] Initialization failed, using Standalone Storage Engine:', err.message);
+        console.warn('[PROMPTX Supabase] Init failed:', err.message);
       }
     } else {
-      console.log('[PROMPTX Supabase] Config placeholder detected. Operating in Local Realtime Storage Mode.');
+      console.warn('[PROMPTX Supabase] Supabase JS library not loaded.');
     }
   }
 
-  // --- IMAGE STORAGE UPLOADER ---
-  async function uploadImage(file, bucketName = 'recreated-images') {
+  async function uploadImage(file, bucketName) {
+    bucketName = bucketName || 'recreated-images';
     if (!file) return null;
-
-    // Validate type and size (Max 10MB)
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      throw new Error('Invalid file format. Please upload JPG, JPEG, or PNG images.');
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('File size exceeds 10MB limit.');
-    }
-
+    var validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) throw new Error('Invalid file format.');
+    if (file.size > 10 * 1024 * 1024) throw new Error('File size exceeds 10MB limit.');
     if (client && isRealtimeActive) {
       try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { data, error } = await client.storage.from(bucketName).upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-        if (error) throw error;
-
-        const { data: publicUrlData } = client.storage.from(bucketName).getPublicUrl(filePath);
-        return publicUrlData.publicUrl;
+        var fileExt = file.name.split('.').pop();
+        var fileName = Date.now() + '_' + Math.random().toString(36).substring(7) + '.' + fileExt;
+        var result = await client.storage.from(bucketName).upload(fileName, file, { cacheControl: '3600', upsert: true });
+        if (result.error) throw result.error;
+        var urlResult = client.storage.from(bucketName).getPublicUrl(fileName);
+        return urlResult.data.publicUrl;
       } catch (err) {
-        console.warn('[PROMPTX Supabase] Cloud upload failed, using Data URI fallback:', err.message);
+        console.warn('[PROMPTX Supabase] Upload failed, using Data URI fallback:', err.message);
         return await readAsDataURL(file);
       }
     }
-
-    // Local Data URI conversion for zero-config testing
     return await readAsDataURL(file);
   }
 
   function readAsDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (e) => reject(e);
+    return new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(e) { resolve(e.target.result); };
+      reader.onerror = function(e) { reject(e); };
       reader.readAsDataURL(file);
     });
   }
 
-  // --- DATABASE & REALTIME OPERATIONS ---
   async function resetEventDatabase() {
-    if (client && isRealtimeActive) {
-      try {
-        await client.from('scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await client.from('submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await client.from('qualifiers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await client.from('participants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('[PROMPTX Supabase] Reset DB tables in Supabase Cloud');
-      } catch (err) {
-        console.warn('[PROMPTX Supabase] DB Reset warning:', err.message);
-      }
+    if (!client || !isRealtimeActive) return;
+    try {
+      await client.from('scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await client.from('submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await client.from('qualifiers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await client.from('participants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      console.log('[PROMPTX Supabase] All tables reset.');
+    } catch (err) {
+      console.warn('[PROMPTX Supabase] DB Reset warning:', err.message);
     }
   }
 
-  // --- DATABASE TABLES SYNC ---
   async function registerParticipantCloud(participant) {
-    if (client && isRealtimeActive) {
-      try {
-        const { data, error } = await client.from('participants').upsert({
-          team_name: participant.name,
-          members: participant.members || '',
-          access_code: 'PROMPTX2026',
-          status: participant.status || 'idle',
-          current_qualified_round: participant.qualifiedRound || 1,
-          last_activity: new Date().toISOString()
-        }, { onConflict: 'team_name' }).select();
-
-        if (error) console.warn('[PROMPTX Supabase] Participant Cloud Sync Warning:', error.message);
-        return data;
-      } catch (err) {
-        console.warn('[PROMPTX Supabase] Participant Cloud Sync Exception:', err.message);
+    if (!client || !isRealtimeActive) return null;
+    try {
+      console.log('[REGISTRATION] Inserting participant:', participant.name);
+      var result = await client.from('participants').upsert({
+        team_name: participant.name,
+        members: participant.members || '',
+        access_code: 'PROMPTX2026',
+        status: participant.status || 'idle',
+        current_qualified_round: participant.qualifiedRound || 1,
+        last_activity: new Date().toISOString()
+      }, { onConflict: 'team_name' }).select();
+      if (result.error) {
+        console.error('[REGISTRATION] Insert failed:', result.error.message);
+      } else {
+        console.log('[REGISTRATION] Participant inserted:', result.data);
       }
+      return result.data;
+    } catch (err) {
+      console.error('[REGISTRATION] Exception:', err.message);
+      return null;
     }
-    return null;
   }
 
   async function fetchParticipantsCloud() {
-    if (client && isRealtimeActive) {
-      try {
-        const { data, error } = await client.from('participants').select('*');
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        console.warn('[PROMPTX Supabase] Fetch Participants Warning:', err.message);
-      }
+    if (!client || !isRealtimeActive) return null;
+    try {
+      var result = await client.from('participants').select('*');
+      if (result.error) throw result.error;
+      return result.data;
+    } catch (err) {
+      console.warn('[PROMPTX Supabase] Fetch Participants error:', err.message);
+      return null;
     }
-    return null;
   }
 
-  // --- REALTIME SUBSCRIPTIONS ---
-  function subscribeRealtime(onPayloadCallback) {
-    if (client && isRealtimeActive) {
-      const channel = client
-        .channel('public:promptx')
-        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-          console.log('[Supabase Realtime Payload]:', payload);
-          if (onPayloadCallback) onPayloadCallback(payload);
-        })
-        .subscribe();
-
-      return channel;
+  function subscribeRealtime(onInsertCallback) {
+    if (!client || !isRealtimeActive) {
+      console.warn('[REALTIME] Supabase not initialized.');
+      return null;
     }
-    return null;
+    console.log('[REALTIME] Connecting...');
+    var channel = client
+      .channel('participants-insert-channel')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants' }, function(payload) {
+        console.log('[REALTIME] INSERT received:', payload.new);
+        if (onInsertCallback) onInsertCallback(payload.new);
+      })
+      .subscribe(function(status) {
+        if (status === 'SUBSCRIBED') {
+          console.log('[REALTIME] Connected and subscribed to participants INSERT events.');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[REALTIME ERROR] Channel error - ensure Realtime is enabled on participants table in Supabase Dashboard.');
+        } else if (status === 'TIMED_OUT') {
+          console.error('[REALTIME ERROR] Subscription timed out.');
+        } else {
+          console.log('[REALTIME] Status:', status);
+        }
+      });
+    return channel;
   }
 
   window.PromptXSupabase = {
     init: initSupabase,
-    uploadImage,
-    resetEventDatabase,
-    registerParticipantCloud,
-    fetchParticipantsCloud,
-    subscribeRealtime,
-    isRealtimeActive: () => isRealtimeActive
+    uploadImage: uploadImage,
+    resetEventDatabase: resetEventDatabase,
+    registerParticipantCloud: registerParticipantCloud,
+    fetchParticipantsCloud: fetchParticipantsCloud,
+    subscribeRealtime: subscribeRealtime,
+    isRealtimeActive: function() { return isRealtimeActive; }
   };
 
   initSupabase();

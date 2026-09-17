@@ -63,7 +63,7 @@
   }
 
   // --- PERSISTENCE & CROSS-TAB/CROSS-WINDOW SYNC ---
-  // Store state in localStorage and use BroadcastChannel + Storage listener to sync registered teams and submissions live across all participant and admin tabs/windows.
+  // Store state in localStorage and use BroadcastChannel + Storage listener + 1s active polling loop to guarantee registered teams and submissions update live across all participant and admin tabs/windows.
   const broadcast = window.BroadcastChannel ? new BroadcastChannel('promptx_channel') : null;
 
   function loadDatabase() {
@@ -71,7 +71,15 @@
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        state.db = { ...state.db, ...parsed };
+        // Merge deep objects cleanly while preserving overall structure
+        state.db = {
+          ...state.db,
+          ...parsed,
+          participants: { ...(state.db.participants || {}), ...(parsed.participants || {}) },
+          prompts: { ...(state.db.prompts || {}), ...(parsed.prompts || {}) },
+          submissions: { ...(state.db.submissions || {}), ...(parsed.submissions || {}) },
+          scores: { ...(state.db.scores || {}), ...(parsed.scores || {}) }
+        };
       } catch (e) {
         console.error('Failed to load database:', e);
       }
@@ -85,7 +93,9 @@
     localStorage.setItem(DB_KEY, serialized);
     sessionStorage.setItem(DB_KEY, serialized);
     if (broadcast) {
-      broadcast.postMessage({ type: 'DB_UPDATE' });
+      try {
+        broadcast.postMessage({ type: 'DB_UPDATE' });
+      } catch (e) {}
     }
   }
 
@@ -145,11 +155,14 @@
     }
   }
 
-  // --- TIMER LOOP ---
+  // --- TIMER & LIVE DATA SYNC LOOP ---
   function startTimerLoop() {
     if (state.timerInterval) clearInterval(state.timerInterval);
 
     state.timerInterval = setInterval(() => {
+      // Continuously pull latest state to reflect live registered teams across windows
+      loadDatabase();
+
       if (state.db.event.timer.isRunning) {
         if (state.db.event.timer.remaining > 0) {
           state.db.event.timer.remaining -= 1;
@@ -160,9 +173,10 @@
           state.db.event.stage = 'ENDED';
           saveDatabase();
           renderTimerDisplay();
-          renderUI();
         }
       }
+
+      renderUI();
     }, 1000);
   }
 
@@ -326,6 +340,9 @@
       return alert(`Invalid joining code. The active code is ${state.db.event.joiningCode}`);
     }
 
+    // Load latest state first so existing teams registered on other devices/tabs are preserved
+    loadDatabase();
+
     const pId = `p_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     state.participant = {
       id: pId,
@@ -335,6 +352,10 @@
       qualifiedRound: 1, // Qualified for Round 1 by default
       joinedAt: new Date().toISOString()
     };
+
+    if (!state.db.participants) state.db.participants = {};
+    if (!state.db.qualifiers) state.db.qualifiers = { round1: [], round2: [], round3: [] };
+    if (!state.db.qualifiers.round1) state.db.qualifiers.round1 = [];
 
     state.db.participants[pId] = state.participant;
 

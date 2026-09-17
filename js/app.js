@@ -129,6 +129,36 @@
         console.warn('[App] Could not fetch initial participants:', e);
       }
     }
+
+    // Pull submissions from Supabase Cloud DB
+    if (window.PromptXSupabase && window.PromptXSupabase.fetchSubmissionsCloud) {
+      try {
+        const cloudSubs = await window.PromptXSupabase.fetchSubmissionsCloud();
+        if (cloudSubs && Array.isArray(cloudSubs)) {
+          cloudSubs.forEach(cs => {
+            const subKey = cs.sub_key || cs.subKey;
+            if (subKey) {
+              state.db.submissions[subKey] = {
+                subKey: subKey,
+                participantId: cs.participant_id || cs.participantId,
+                participantName: cs.participant_name || cs.participantName,
+                round: Number(cs.round_number || cs.round || 1),
+                prompt: cs.prompt || '',
+                imageUrl: cs.recreated_image_url || cs.imageUrl || '',
+                submittedAt: cs.submitted_at || cs.submittedAt || new Date().toISOString(),
+                locked: true
+              };
+              const pId = cs.participant_id || cs.participantId;
+              if (pId && state.db.participants[pId]) {
+                state.db.participants[pId].status = 'submitted';
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('[App] Could not fetch initial submissions:', e);
+      }
+    }
   }
 
   function saveDatabase() {
@@ -208,6 +238,32 @@
           }
           saveDatabase();
           renderUI();
+        },
+        // 3. Submission Handler (Live Submissions & Recreated Images in Admin Dashboard)
+        function(newSub) {
+          if (!newSub) return;
+          console.log('[REALTIME] Submission received in app:', newSub);
+          var subKey = newSub.sub_key || newSub.subKey;
+          if (!subKey) return;
+          state.db.submissions[subKey] = {
+            subKey: subKey,
+            participantId: newSub.participant_id || newSub.participantId,
+            participantName: newSub.participant_name || newSub.participantName,
+            round: Number(newSub.round_number || newSub.round || 1),
+            prompt: newSub.prompt || '',
+            imageUrl: newSub.recreated_image_url || newSub.imageUrl || '',
+            submittedAt: newSub.submitted_at || newSub.submittedAt || new Date().toISOString(),
+            locked: true
+          };
+          var pId = newSub.participant_id || newSub.participantId;
+          if (pId && state.db.participants[pId]) {
+            state.db.participants[pId].status = 'submitted';
+          }
+          console.log('[ADMIN] Recreated image submission added to dashboard for:', newSub.participant_name);
+          saveDatabase();
+          if (state.role === 'admin') {
+            renderAdminDashboard();
+          }
         }
       );
     }
@@ -267,6 +323,30 @@
               var pId = 'p_' + cp.team_name.toLowerCase().replace(/[^a-z0-9]/g, '_');
               if (!state.db.participants[pId]) {
                 state.db.participants[pId] = { id: pId, name: cp.team_name, members: cp.members, status: cp.status, qualifiedRound: cp.current_qualified_round || 1 };
+              }
+            });
+          }
+        }
+        if (window.PromptXSupabase && window.PromptXSupabase.fetchSubmissionsCloud) {
+          var cloudSubs = await window.PromptXSupabase.fetchSubmissionsCloud();
+          if (cloudSubs && Array.isArray(cloudSubs)) {
+            cloudSubs.forEach(function(cs) {
+              var subKey = cs.sub_key || cs.subKey;
+              if (subKey) {
+                state.db.submissions[subKey] = {
+                  subKey: subKey,
+                  participantId: cs.participant_id || cs.participantId,
+                  participantName: cs.participant_name || cs.participantName,
+                  round: Number(cs.round_number || cs.round || 1),
+                  prompt: cs.prompt || '',
+                  imageUrl: cs.recreated_image_url || cs.imageUrl || '',
+                  submittedAt: cs.submitted_at || cs.submittedAt || new Date().toISOString(),
+                  locked: true
+                };
+                var pId = cs.participant_id || cs.participantId;
+                if (pId && state.db.participants[pId]) {
+                  state.db.participants[pId].status = 'submitted';
+                }
               }
             });
           }
@@ -671,6 +751,10 @@
     }
 
     saveDatabase();
+    // Sync submission to Supabase Cloud & Broadcast immediately to Admin Dashboard
+    if (window.PromptXSupabase && window.PromptXSupabase.saveSubmissionCloud) {
+      window.PromptXSupabase.saveSubmissionCloud(submission);
+    }
     renderUI();
   }
 
@@ -1331,6 +1415,7 @@
   }
 
 })();
+
 
 
 

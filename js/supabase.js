@@ -90,6 +90,41 @@
     }
   }
 
+  // --- DATABASE TABLES SYNC ---
+  async function registerParticipantCloud(participant) {
+    if (client && isRealtimeActive) {
+      try {
+        const { data, error } = await client.from('participants').upsert({
+          team_name: participant.name,
+          members: participant.members || '',
+          access_code: 'PROMPTX2026',
+          status: participant.status || 'idle',
+          current_qualified_round: participant.qualifiedRound || 1,
+          last_activity: new Date().toISOString()
+        }, { onConflict: 'team_name' }).select();
+
+        if (error) console.warn('[PROMPTX Supabase] Participant Cloud Sync Warning:', error.message);
+        return data;
+      } catch (err) {
+        console.warn('[PROMPTX Supabase] Participant Cloud Sync Exception:', err.message);
+      }
+    }
+    return null;
+  }
+
+  async function fetchParticipantsCloud() {
+    if (client && isRealtimeActive) {
+      try {
+        const { data, error } = await client.from('participants').select('*');
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.warn('[PROMPTX Supabase] Fetch Participants Warning:', err.message);
+      }
+    }
+    return null;
+  }
+
   // --- REALTIME SUBSCRIPTIONS ---
   function subscribeRealtime(onPayloadCallback) {
     if (client && isRealtimeActive) {
@@ -110,6 +145,8 @@
     init: initSupabase,
     uploadImage,
     resetEventDatabase,
+    registerParticipantCloud,
+    fetchParticipantsCloud,
     subscribeRealtime,
     isRealtimeActive: () => isRealtimeActive
   };

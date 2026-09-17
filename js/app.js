@@ -46,9 +46,13 @@
 
   // --- INITIALIZATION ---
   document.addEventListener('DOMContentLoaded', () => {
+    // Clear active participant session memory on page refresh so user must sign in again
+    sessionStorage.removeItem('promptx_active_participant');
+    localStorage.removeItem('promptx_active_participant');
+    state.participant = null;
+
     loadDatabase();
     initIcons();
-    restoreParticipantSession();
     bindEvents();
     bindStorageSync();
     bindSupabaseRealtime();
@@ -192,6 +196,10 @@
     document.getElementById('close-auth-modal-btn')?.addEventListener('click', closeOrganiserAuthModal);
     document.getElementById('admin-auth-modal-form')?.addEventListener('submit', handleOrganiserModalAuthSubmit);
 
+    // Participant Sign Out
+    document.getElementById('nav-signout-btn')?.addEventListener('click', handleParticipantSignOut);
+    document.getElementById('arena-signout-btn')?.addEventListener('click', handleParticipantSignOut);
+
     // Participant Join Form
     document.getElementById('join-form')?.addEventListener('submit', handleJoinSubmit);
 
@@ -327,6 +335,17 @@
   function switchRole(role) {
     state.role = role;
     renderUI();
+  }
+
+  function handleParticipantSignOut() {
+    if (confirm('Are you sure you want to sign out? You will need to re-enter your team details to re-enter the arena.')) {
+      state.participant = null;
+      state.currentPromptText = '';
+      state.uploadedImageBase64 = null;
+      sessionStorage.removeItem('promptx_active_participant');
+      localStorage.removeItem('promptx_active_participant');
+      renderUI();
+    }
   }
 
   function handleJoinSubmit(e) {
@@ -665,10 +684,12 @@
   function renderUI() {
     const stageBadge = document.getElementById('nav-stage-badge');
     const roundBadge = document.getElementById('nav-round-badge');
+    const signoutBtn = document.getElementById('nav-signout-btn');
     const currentRound = state.db.event.currentRound || 1;
 
     if (stageBadge) stageBadge.textContent = state.db.event.stage;
     if (roundBadge) roundBadge.textContent = `ROUND ${currentRound}`;
+    if (signoutBtn) signoutBtn.classList.toggle('hidden', !state.participant || state.role !== 'participant');
 
     document.getElementById('view-participant')?.classList.toggle('hidden', state.role !== 'participant');
     document.getElementById('view-admin')?.classList.toggle('hidden', state.role !== 'admin');

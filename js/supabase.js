@@ -60,13 +60,42 @@
   }
 
   async function resetEventDatabase() {
+    // 1. Broadcast reset immediately to all connected participant browsers
+    if (activeRealtimeChannel) {
+      try {
+        activeRealtimeChannel.send({
+          type: 'broadcast',
+          event: 'event_reset',
+          payload: { timestamp: Date.now() }
+        });
+        console.log('[REALTIME] Event reset broadcast dispatched');
+      } catch (err) {
+        console.warn('[REALTIME] Event reset broadcast error:', err.message);
+      }
+    }
+
     if (!client || !isRealtimeActive) return;
+
     try {
-      await client.from('scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await client.from('submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await client.from('qualifiers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await client.from('participants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      console.log('[PROMPTX Supabase] All tables reset.');
+      // 2. Clear all tables in correct dependency order
+      try { await client.from('scores').delete().gte('total_score', 0); } catch(e){}
+      try { await client.from('submissions').delete().not('sub_key', 'is', null); } catch(e){}
+      try { await client.from('submissions').delete().gte('round_number', 0); } catch(e){}
+      try { await client.from('qualifiers').delete().gte('round_number', 0); } catch(e){}
+      try { await client.from('participants').delete().not('team_name', 'is', null); } catch(e){}
+
+      // 3. Reset event_state back to default Round 1 WAITING stage
+      await client.from('event_state').upsert({
+        id: 1,
+        stage: 'WAITING',
+        current_round: 1,
+        timer_remaining: 1800,
+        timer_is_running: false,
+        reference_image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+
+      console.log('[PROMPTX Supabase] All database tables and event_state reset successfully.');
     } catch (err) {
       console.warn('[PROMPTX Supabase] DB Reset warning:', err.message);
     }
@@ -183,7 +212,7 @@
   }
 
   // --- REALTIME SUBSCRIPTIONS (Participants + Event State + Submissions) ---
-  function subscribeRealtime(onParticipantInsert, onEventStateChange, onSubmissionInsert) {
+  function subscribeRealtime(onParticipantInsert, onEventStateChange, onSubmissionInsert, onEventReset) {
     if (!client || !isRealtimeActive) {
       console.warn('[REALTIME] Supabase not initialized.');
       return null;
@@ -226,6 +255,11 @@
         console.log('[REALTIME] Submission broadcast received:', envelope);
         var data = envelope && envelope.payload ? envelope.payload : envelope;
         if (onSubmissionInsert && data) onSubmissionInsert(data);
+      })
+      // 6. Instant Broadcast channel for Event Reset
+      .on('broadcast', { event: 'event_reset' }, function(envelope) {
+        console.log('[REALTIME] Event reset broadcast received:', envelope);
+        if (onEventReset) onEventReset();
       })
       .subscribe(function(status) {
         if (status === 'SUBSCRIBED') {
@@ -313,3 +347,4 @@
 
   initSupabase();
 })(window);
+

@@ -34,7 +34,7 @@
             <span id="nav-round-badge" class="badge badge-cyan">ROUND 1</span>
             <span id="nav-stage-badge" class="badge badge-amber">WAITING ROOM</span>
           </div>
-          <span style="font-size:0.7rem; color:#94a3b8;">Recreate Images using Prompts &bull; Where Creativity Meets AI</span>
+          <span style="font-size:0.7rem; color:#94a3b8;">AI Image Recreation Competition &bull; Where Creativity Meets AI</span>
         </div>
       </div>
 
@@ -45,6 +45,9 @@
         </button>
         <button id="nav-leaderboard-btn" class="btn-secondary">
           <i data-lucide="trophy" style="width:14px; color:#fbbf24"></i> Leaderboard
+        </button>
+        <button id="nav-signout-btn" class="btn-secondary hidden" style="border-color:#f43f5e; color:#fda4af;">
+          <i data-lucide="log-out" style="width:14px"></i> Sign Out
         </button>
         
         <!-- Discrete Organiser Lock Trigger -->
@@ -114,10 +117,15 @@
         
         <!-- Header Bar: Team Info & Synchronized Countdown Timer -->
         <div class="glass-panel p-4" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
-          <div class="font-mono" style="font-size:0.85rem;">
-            <span style="color:#94a3b8;">Team: </span>
-            <strong id="participant-name-display" style="color:var(--cyber-cyan)">Team</strong>
-            <span id="participant-qualification-status-badge" class="badge badge-green" style="margin-left:0.5rem;">Qualified for Round 1</span>
+          <div class="font-mono" style="display:flex; align-items:center; gap:0.75rem; font-size:0.85rem;">
+            <div>
+              <span style="color:#94a3b8;">Team: </span>
+              <strong id="participant-name-display" style="color:var(--cyber-cyan)">Team</strong>
+              <span id="participant-qualification-status-badge" class="badge badge-green" style="margin-left:0.5rem;">Qualified for Round 1</span>
+            </div>
+            <button id="arena-signout-btn" class="btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.7rem; border-color:#f43f5e; color:#fda4af;">
+              <i data-lucide="log-out" style="width:12px;"></i> Sign Out
+            </button>
           </div>
 
           <div class="glass-panel p-3" style="border-color:var(--cyber-cyan); display:flex; align-items:center; gap:0.75rem;">
@@ -450,7 +458,7 @@
 
   <!-- FOOTER -->
   <footer style="border-top:1px solid rgba(255,255,255,0.08); padding:1rem; text-align:center; font-size:0.75rem; color:#64748b;" class="font-mono">
-    PROMPTX &bull; Recreate Images using Prompts &bull; Organised by AI&DS Deparrtment
+    PROMPTX &bull; AI Image Recreation Competition &bull; Supabase & Realtime Powered
   </footer>
 
   <!-- Core JavaScript Modules -->

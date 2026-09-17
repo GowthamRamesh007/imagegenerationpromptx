@@ -8,8 +8,8 @@
   'use strict';
 
   // Configurable Supabase credentials (override here or in window.SUPABASE_CONFIG)
-  const SUPABASE_URL = window.SUPABASE_URL || 'https://vawmwfkttzduxvxujadg.supabase.co';
-  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhd213Zmt0dHpkdXh2eHVqYWRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NTk5NTEsImV4cCI6MjEwNDMzNTk1MX0.UiqwPdNrMClEzgdUl9PCoXSFKLnNSZmL1gzkOuKeqJw';
+  const SUPABASE_URL = window.SUPABASE_URL || 'https://xyzcompany.supabase.co';
+  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
 
   let client = null;
   let isRealtimeActive = false;
@@ -75,6 +75,21 @@
     });
   }
 
+  // --- DATABASE & REALTIME OPERATIONS ---
+  async function resetEventDatabase() {
+    if (client && isRealtimeActive) {
+      try {
+        await client.from('scores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await client.from('submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await client.from('qualifiers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await client.from('participants').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        console.log('[PROMPTX Supabase] Reset DB tables in Supabase Cloud');
+      } catch (err) {
+        console.warn('[PROMPTX Supabase] DB Reset warning:', err.message);
+      }
+    }
+  }
+
   // --- REALTIME SUBSCRIPTIONS ---
   function subscribeRealtime(onPayloadCallback) {
     if (client && isRealtimeActive) {
@@ -94,6 +109,7 @@
   window.PromptXSupabase = {
     init: initSupabase,
     uploadImage,
+    resetEventDatabase,
     subscribeRealtime,
     isRealtimeActive: () => isRealtimeActive
   };

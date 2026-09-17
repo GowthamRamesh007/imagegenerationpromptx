@@ -580,10 +580,31 @@
     renderUI();
   }
 
-  function handleResetEvent() {
+  async function handleResetEvent() {
     if (confirm('⚠️ RESET EVENT: Are you sure you want to completely reset the event? This will wipe all registered participants, prompts, submissions, and scores so you can start a fresh competition.')) {
+      // Clear memory state
+      state.db.participants = {};
+      state.db.prompts = {};
+      state.db.submissions = {};
+      state.db.scores = {};
+      state.db.qualifiers = { round1: [], round2: [], round3: [] };
+      state.db.event.currentRound = 1;
+      state.db.event.stage = 'WAITING';
+      state.db.event.timer.remaining = state.db.event.timer.duration || 1800;
+      state.db.event.timer.isRunning = false;
+      state.participant = null;
+      state.currentPromptText = '';
+      state.uploadedImageBase64 = null;
+
+      // Wipe local and session storage
       sessionStorage.clear();
       localStorage.clear();
+
+      // Wipe Supabase cloud database tables if connected
+      if (window.PromptXSupabase && window.PromptXSupabase.resetEventDatabase) {
+        await window.PromptXSupabase.resetEventDatabase();
+      }
+
       location.reload();
     }
   }

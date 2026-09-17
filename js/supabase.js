@@ -1,5 +1,7 @@
 /**
- * PROMPTX - Supabase Client & Realtime Storage Module
+ * ⚡ PROMPTX — Supabase Client & Realtime Storage Module
+ * Manages Supabase Auth, PostgreSQL DB queries, Realtime subscriptions,
+ * Image Storage uploads, and live broadcast state synchronization.
  */
 
 (function (window) {
@@ -10,6 +12,7 @@
 
   let client = null;
   let isRealtimeActive = false;
+  let activeRealtimeChannel = null;
 
   function initSupabase() {
     if (window.supabase) {
@@ -105,30 +108,105 @@
     }
   }
 
-  function subscribeRealtime(onInsertCallback) {
+  // --- REALTIME SUBSCRIPTIONS (Participants + Event State Broadcast/Changes) ---
+  function subscribeRealtime(onParticipantInsert, onEventStateChange) {
     if (!client || !isRealtimeActive) {
       console.warn('[REALTIME] Supabase not initialized.');
       return null;
     }
     console.log('[REALTIME] Connecting...');
+
+    if (activeRealtimeChannel) {
+      try { client.removeChannel(activeRealtimeChannel); } catch (e) {}
+    }
+
     var channel = client
-      .channel('participants-insert-channel')
+      .channel('promptx-global-realtime', {
+        config: { broadcast: { self: false } }
+      })
+      // 1. Participant INSERT notifications
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants' }, function(payload) {
-        console.log('[REALTIME] INSERT received:', payload.new);
-        if (onInsertCallback) onInsertCallback(payload.new);
+        console.log('[REALTIME] Participant INSERT received:', payload.new);
+        if (onParticipantInsert) onParticipantInsert(payload.new);
+      })
+      // 2. Event State Postgres Changes (Stage, Round, Reference Image, Timer)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_state' }, function(payload) {
+        console.log('[REALTIME] Event state DB change received:', payload.new);
+        if (onEventStateChange && payload.new) onEventStateChange(payload.new);
+      })
+      // 3. Instant Broadcast channel for zero-latency cross-device sync
+      .on('broadcast', { event: 'event_state_update' }, function(envelope) {
+        console.log('[REALTIME] Event state broadcast received:', envelope.payload);
+        if (onEventStateChange && envelope.payload) onEventStateChange(envelope.payload);
       })
       .subscribe(function(status) {
         if (status === 'SUBSCRIBED') {
-          console.log('[REALTIME] Connected and subscribed to participants INSERT events.');
+          console.log('[REALTIME] Connected — subscribed to participants & event state updates.');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('[REALTIME ERROR] Channel error - ensure Realtime is enabled on participants table in Supabase Dashboard.');
+          console.error('[REALTIME ERROR] Channel error on realtime subscription.');
         } else if (status === 'TIMED_OUT') {
           console.error('[REALTIME ERROR] Subscription timed out.');
         } else {
           console.log('[REALTIME] Status:', status);
         }
       });
+
+    activeRealtimeChannel = channel;
     return channel;
+  }
+
+  // Save event stage and reference image to Supabase and broadcast to all participants immediately
+  async function saveEventState(eventObj) {
+    var payload = {
+      stage: eventObj.stage,
+      current_round: eventObj.currentRound || 1,
+      timer_remaining: Math.floor((eventObj.timer && eventObj.timer.remaining) || 0),
+      timer_is_running: (eventObj.timer && eventObj.timer.isRunning) || false,
+      reference_image: eventObj.referenceImage || '',
+      updated_at: new Date().toISOString()
+    };
+
+    // 1. Instant Realtime Broadcast over WebSocket channel (<50ms latency to all participants)
+    if (activeRealtimeChannel) {
+      try {
+        activeRealtimeChannel.send({
+          type: 'broadcast',
+          event: 'event_state_update',
+          payload: payload
+        });
+      } catch (err) {
+        console.warn('[REALTIME] Broadcast send error:', err.message);
+      }
+    }
+
+    // 2. Persist to Supabase Database for refresh / new connections
+    if (client && isRealtimeActive) {
+      try {
+        await client.from('event_state').upsert({
+          id: 1,
+          stage: payload.stage,
+          current_round: payload.current_round,
+          timer_remaining: payload.timer_remaining,
+          timer_is_running: payload.timer_is_running,
+          reference_image: payload.reference_image,
+          updated_at: payload.updated_at
+        }, { onConflict: 'id' });
+        console.log('[PROMPTX Supabase] Saved event_state to DB with reference_image:', payload.reference_image);
+      } catch (err) {
+        console.warn('[PROMPTX Supabase] event_state DB save error:', err.message);
+      }
+    }
+  }
+
+  async function fetchEventState() {
+    if (!client || !isRealtimeActive) return null;
+    try {
+      var result = await client.from('event_state').select('*').eq('id', 1).maybeSingle();
+      if (result.error) throw result.error;
+      return result.data;
+    } catch (err) {
+      return null;
+    }
   }
 
   window.PromptXSupabase = {
@@ -138,6 +216,8 @@
     registerParticipantCloud: registerParticipantCloud,
     fetchParticipantsCloud: fetchParticipantsCloud,
     subscribeRealtime: subscribeRealtime,
+    saveEventState: saveEventState,
+    fetchEventState: fetchEventState,
     isRealtimeActive: function() { return isRealtimeActive; }
   };
 
